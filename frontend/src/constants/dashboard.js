@@ -29,7 +29,7 @@ export const focusModules = [
   {
     id: 'F6',
     title: 'Recovery & Fatigue Tracker',
-    summary: 'Central fatigue is trending down after yesterday’s deload walk.',
+    summary: "Central fatigue is trending down after yesterday's deload walk.",
     icon: 'pulse',
   },
   {
@@ -77,7 +77,7 @@ export const aiSignals = [
   },
   {
     title: 'Budget plate looks clean',
-    detail: 'Today’s macro target can still be hit with one controlled dinner.',
+    detail: "Today's macro target can still be hit with one controlled dinner.",
     icon: 'leaf',
   },
   {

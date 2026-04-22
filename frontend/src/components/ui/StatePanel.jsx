@@ -17,23 +17,25 @@ export function StatePanel({
   title,
 }) {
   return (
-    <Panel className={cn('px-5 py-5 sm:px-6 sm:py-6', className)}>
-      <div className="flex flex-col gap-4">
+    <Panel className={cn('px-4 py-4 sm:px-6 sm:py-6', className)}>
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="font-display text-2xl font-semibold tracking-tight text-white">
+            <h3 className="font-display text-xl font-semibold tracking-tight text-white sm:text-2xl">
               {title}
             </h3>
             {description ? (
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-400">{description}</p>
+              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-400 sm:mt-2 sm:leading-7">
+                {description}
+              </p>
             ) : null}
           </div>
-          {action ? <div className="shrink-0">{action}</div> : null}
+          {action ? <div className="shrink-0 [&>*]:w-full sm:[&>*]:w-auto">{action}</div> : null}
         </div>
 
         <div className="soft-divider" />
 
-        <div className={cn('min-h-[140px]', contentClassName)}>
+        <div className={cn('min-h-[116px] sm:min-h-[140px]', contentClassName)}>
           {isLoading ? <LoadingBlock lines={4} /> : null}
           {!isLoading && isEmpty ? (
             <EmptyState

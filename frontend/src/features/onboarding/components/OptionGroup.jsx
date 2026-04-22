@@ -9,13 +9,17 @@ export function OptionGroup({
   title,
 }) {
   return (
-    <section className="space-y-4">
+    <section className="space-y-3 sm:space-y-4">
       <div>
-        <h3 className="font-display text-2xl font-semibold tracking-tight text-white">{title}</h3>
-        <p className="mt-2 text-sm leading-7 text-slate-400">{description}</p>
+        <h3 className="font-display text-xl font-semibold tracking-tight text-white sm:text-2xl">
+          {title}
+        </h3>
+        <p className="mt-1.5 text-sm leading-6 text-slate-400 sm:mt-2 sm:leading-7">
+          {description}
+        </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-2.5 sm:gap-3 md:grid-cols-3">
         {options.map((option) => {
           const isSelected = option.id === selectedId;
 
@@ -24,7 +28,7 @@ export function OptionGroup({
               key={option.id}
               type="button"
               className={cn(
-                'rounded-[24px] border px-4 py-4 text-left',
+                'rounded-[22px] border px-4 py-3.5 text-left sm:rounded-[24px] sm:py-4',
                 isSelected
                   ? 'border-brand-400/20 bg-brand-400/10 text-white'
                   : 'border-white/8 bg-white/[0.03] text-slate-400 hover:border-white/12 hover:bg-white/[0.05]',
@@ -34,7 +38,9 @@ export function OptionGroup({
               whileTap={{ scale: 0.99 }}
             >
               <p className="font-medium text-white">{option.title}</p>
-              <p className="mt-2 text-sm leading-7 text-inherit">{option.description}</p>
+              <p className="mt-2 text-sm leading-6 text-inherit sm:leading-7">
+                {option.description}
+              </p>
             </motion.button>
           );
         })}

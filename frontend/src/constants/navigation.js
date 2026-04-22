@@ -6,12 +6,6 @@ export const primaryNavigation = [
     icon: 'dashboard',
   },
   {
-    label: 'Onboarding',
-    to: '/onboarding',
-    description: 'Coach setup and identity',
-    icon: 'spark',
-  },
-  {
     label: 'Workout',
     to: '/workout',
     description: 'Live gym session shell',
@@ -29,4 +23,21 @@ export const primaryNavigation = [
     description: 'Progress and prediction',
     icon: 'chart',
   },
+  {
+    label: 'Profile',
+    to: '/profile',
+    description: 'Identity and preferences',
+    icon: 'profile',
+  },
 ];
+
+export const utilityNavigation = [
+  {
+    label: 'Onboarding',
+    to: '/onboarding',
+    description: 'Coach setup and identity',
+    icon: 'spark',
+  },
+];
+
+export const allNavigationItems = [...primaryNavigation, ...utilityNavigation];

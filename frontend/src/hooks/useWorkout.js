@@ -1,0 +1,158 @@
+import { useAppState } from '@/hooks/useAppState';
+
+function formatTimer(totalSeconds) {
+  const safeValue = Math.max(0, totalSeconds);
+  const minutes = String(Math.floor(safeValue / 60)).padStart(2, '0');
+  const seconds = String(safeValue % 60).padStart(2, '0');
+
+  return `${minutes}:${seconds}`;
+}
+
+function resolveRecoveryStatus(recovery) {
+  if (recovery >= 86) {
+    return 'Ready';
+  }
+
+  if (recovery >= 78) {
+    return 'Stable';
+  }
+
+  return 'Watch';
+}
+
+export function useWorkout() {
+  const { state, dispatch } = useAppState();
+  const { workout, analytics, userProfile } = state;
+  const currentExercise = workout.queue[workout.currentExerciseIndex] || workout.queue[0];
+  const nextQueuedExercise = workout.queue[workout.currentExerciseIndex + 1];
+
+  const session = {
+    title: workout.programTitle,
+    phase: workout.sessionComplete
+      ? 'Session complete'
+      : workout.sessionActive
+        ? `Set ${workout.currentSet} of ${currentExercise.sets}`
+        : 'Ready to start',
+    recovery: resolveRecoveryStatus(analytics.recovery),
+    nextExercise: currentExercise.name,
+    restTimer: formatTimer(workout.restSecondsRemaining),
+    notes: currentExercise.notes,
+    blockLabel:
+      userProfile.goal === 'strength'
+        ? 'Heavy neural'
+        : userProfile.goal === 'discipline'
+          ? 'Consistency block'
+          : 'Hybrid progression',
+  };
+
+  const workoutStats = [
+    {
+      label: 'Session intent',
+      value:
+        userProfile.goal === 'strength'
+          ? 'Upper strength'
+          : userProfile.goal === 'discipline'
+            ? 'Discipline circuit'
+            : 'Lean recomposition',
+      detail:
+        userProfile.goal === 'strength'
+          ? 'Lower-rep pushing and pulling with disciplined rest windows.'
+          : userProfile.goal === 'discipline'
+            ? 'Reliable movement quality with low-friction session pacing.'
+            : 'Balanced strength and hypertrophy work with controlled fatigue.',
+      icon: 'dumbbell',
+    },
+    {
+      label: 'Gym mode',
+      value: 'Focused',
+      detail: 'Large controls, glanceable set targets, and no-clutter pacing.',
+      icon: 'spark',
+    },
+    {
+      label: 'AI cue density',
+      value: workout.chatModeEnabled ? 'Active' : 'Light',
+      detail: workout.chatModeEnabled
+        ? 'Workout Chat Mode is ready to answer form, pacing, and motivation prompts.'
+        : 'Coaching only interrupts if fatigue or form drift spikes.',
+      icon: 'chat',
+    },
+  ];
+
+  const exerciseItems = workout.queue.map((item, index) => {
+    const detail = `${item.sets} sets x ${item.reps}${item.unit ? ` ${item.unit}` : ' reps'}`;
+
+    if (workout.sessionComplete) {
+      return {
+        ...item,
+        detail,
+        readiness: index === 0 ? 'Restart' : 'Queued',
+      };
+    }
+
+    if (index < workout.currentExerciseIndex) {
+      return {
+        ...item,
+        detail,
+        readiness: 'Done',
+      };
+    }
+
+    if (index === workout.currentExerciseIndex) {
+      return {
+        ...item,
+        detail: `${detail} | set ${workout.currentSet}`,
+        readiness: workout.sessionActive ? 'Live' : 'Prime',
+      };
+    }
+
+    if (index === workout.currentExerciseIndex + 1) {
+      return {
+        ...item,
+        detail,
+        readiness: 'Next',
+      };
+    }
+
+    return {
+      ...item,
+      detail,
+      readiness: item.readiness,
+    };
+  });
+
+  const coachCues = [
+    `Current focus: ${currentExercise.name}.`,
+    workout.restSecondsRemaining > 0
+      ? `Rest timer is active at ${formatTimer(workout.restSecondsRemaining)} before the next effort.`
+      : 'Rest timer is clear, so the next effort can start when you are ready.',
+    nextQueuedExercise
+      ? `Next exercise in queue: ${nextQueuedExercise.name}.`
+      : 'Final movement is in progress; the session wraps after this block.',
+  ];
+
+  return {
+    coachCues,
+    currentExercise,
+    exerciseItems,
+    isChatModeEnabled: workout.chatModeEnabled,
+    isSessionActive: workout.sessionActive,
+    isSessionComplete: workout.sessionComplete,
+    session,
+    workoutStats,
+    startSession() {
+      dispatch({
+        type: 'START_WORKOUT_SESSION',
+        payload: { restart: workout.sessionComplete },
+      });
+    },
+    completeSet() {
+      dispatch({ type: 'COMPLETE_WORKOUT_SET' });
+    },
+    toggleChatMode() {
+      dispatch({ type: 'TOGGLE_WORKOUT_CHAT' });
+    },
+    reorderBlock() {
+      dispatch({ type: 'ROTATE_WORKOUT_QUEUE' });
+    },
+  };
+}

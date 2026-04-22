@@ -5,6 +5,7 @@ import DashboardPage from '@/pages/DashboardPage';
 import DietPage from '@/pages/DietPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import OnboardingPage from '@/pages/OnboardingPage';
+import ProfilePage from '@/pages/ProfilePage';
 import WorkoutPage from '@/pages/WorkoutPage';
 
 export const router = createBrowserRouter([
@@ -31,6 +32,10 @@ export const router = createBrowserRouter([
       {
         path: 'analytics',
         element: <AnalyticsPage />,
+      },
+      {
+        path: 'profile',
+        element: <ProfilePage />,
       },
     ],
   },

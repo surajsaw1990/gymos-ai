@@ -211,6 +211,7 @@ const iconMap = {
   dumbbell: DumbbellIcon,
   leaf: LeafIcon,
   pulse: PulseIcon,
+  profile: BodyIcon,
   spark: SparkIcon,
   streak: StreakIcon,
   target: TargetIcon,
