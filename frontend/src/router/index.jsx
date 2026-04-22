@@ -1,7 +1,11 @@
 import { createBrowserRouter } from 'react-router-dom';
+import AnalyticsPage from '@/pages/AnalyticsPage';
 import AppLayout from '@/layouts/AppLayout';
-import HomePage from '@/pages/HomePage';
+import DashboardPage from '@/pages/DashboardPage';
+import DietPage from '@/pages/DietPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import OnboardingPage from '@/pages/OnboardingPage';
+import WorkoutPage from '@/pages/WorkoutPage';
 
 export const router = createBrowserRouter([
   {
@@ -10,7 +14,23 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <HomePage />,
+        element: <DashboardPage />,
+      },
+      {
+        path: 'onboarding',
+        element: <OnboardingPage />,
+      },
+      {
+        path: 'workout',
+        element: <WorkoutPage />,
+      },
+      {
+        path: 'diet',
+        element: <DietPage />,
+      },
+      {
+        path: 'analytics',
+        element: <AnalyticsPage />,
       },
     ],
   },
