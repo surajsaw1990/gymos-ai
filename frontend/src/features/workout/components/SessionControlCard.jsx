@@ -5,8 +5,10 @@ import { Panel } from '@/components/ui/Panel';
 export function SessionControlCard({
   isChatModeEnabled,
   isSessionActive,
+  isSessionComplete,
   session,
   onCompleteSet,
+  onResetRestTimer,
   onToggleChatMode,
 }) {
   return (
@@ -16,14 +18,21 @@ export function SessionControlCard({
         <Badge icon="pulse" tone="mint">
           {session.recovery}
         </Badge>
+        <Badge icon={isSessionComplete ? 'spark' : 'target'} tone="neutral">
+          {session.stateLabel}
+        </Badge>
+        {isChatModeEnabled ? (
+          <Badge icon="chat" tone="brand">
+            Chat open
+          </Badge>
+        ) : null}
       </div>
 
       <h3 className="mt-4 font-display text-2xl font-semibold tracking-tight text-white sm:mt-6 sm:text-4xl">
         {session.title}
       </h3>
       <p className="mt-2.5 max-w-2xl text-sm leading-6 text-slate-400 sm:mt-3 sm:text-base sm:leading-8">
-        Next movement: {session.nextExercise}. Rest timer is active, cue density stays low,
-        and form prompts only interrupt when technique drift appears.
+        {session.description}
       </p>
 
       <div className="mt-5 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
@@ -49,7 +58,10 @@ export function SessionControlCard({
 
       <div className="mt-5 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-3">
         <Button disabled={!isSessionActive} onClick={onCompleteSet}>
-          Complete set
+          {isSessionComplete ? 'Session complete' : 'Complete set'}
+        </Button>
+        <Button disabled={!isSessionActive} variant="ghost" onClick={onResetRestTimer}>
+          Reset rest
         </Button>
         <Button variant="secondary" onClick={onToggleChatMode}>
           {isChatModeEnabled ? 'Close chat mode' : 'Open chat mode'}

@@ -23,6 +23,7 @@ export default function WorkoutPage() {
     workoutStats,
     completeSet,
     reorderBlock,
+    resetRestTimer,
     startSession,
     toggleChatMode,
   } = useWorkout();
@@ -63,8 +64,10 @@ export default function WorkoutPage() {
         <SessionControlCard
           isChatModeEnabled={isChatModeEnabled}
           isSessionActive={isSessionActive}
+          isSessionComplete={isSessionComplete}
           session={session}
           onCompleteSet={completeSet}
+          onResetRestTimer={resetRestTimer}
           onToggleChatMode={toggleChatMode}
         />
 
@@ -72,6 +75,9 @@ export default function WorkoutPage() {
           <div className="flex flex-wrap items-center gap-3">
             <Badge icon="pulse" tone="mint">
               {session.recovery} recovery
+            </Badge>
+            <Badge icon={isSessionComplete ? 'spark' : 'target'} tone="neutral">
+              {session.stateLabel}
             </Badge>
             <Badge icon="chat" tone="neutral">
               {isChatModeEnabled ? 'Coach mode active' : 'Coach mode restrained'}

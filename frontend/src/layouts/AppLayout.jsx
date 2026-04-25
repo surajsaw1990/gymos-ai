@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { APP_FOOTNOTE, APP_TAGLINE, BRAND_NAME } from '@/constants/brand';
 import { allNavigationItems, primaryNavigation } from '@/constants/navigation';
+import { ChatPanel } from '@/features/workout/components/ChatPanel';
 import { useAppState } from '@/hooks/useAppState';
 import { routeTransition } from '@/utils/motion';
 
@@ -38,7 +39,7 @@ function resolveToneLabel(tone) {
 export default function AppLayout() {
   const location = useLocation();
   const { state } = useAppState();
-  const { analytics, userProfile } = state;
+  const { analytics, userProfile, workout } = state;
   const activeItem =
     allNavigationItems.find((item) =>
       item.to === '/'
@@ -55,7 +56,7 @@ export default function AppLayout() {
       <div className="relative mx-auto flex min-h-screen max-w-[1440px] gap-3 px-3 py-3 sm:px-4 sm:py-4 md:px-6 lg:gap-4 lg:px-8">
         <AppSidebar />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3 pb-[5.75rem] md:gap-4 md:pb-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 pb-[calc(env(safe-area-inset-bottom)+7.9rem)] md:gap-4 md:pb-4">
           <MobileTopBar activeItem={activeItem} />
 
           <motion.header
@@ -111,7 +112,7 @@ export default function AppLayout() {
           <AnimatePresence mode="wait">
             <motion.main
               key={location.pathname}
-              className="flex-1"
+              className="flex-1 pb-1"
               variants={routeTransition}
               initial="initial"
               animate="animate"
@@ -131,6 +132,7 @@ export default function AppLayout() {
           </footer>
         </div>
 
+        {location.pathname.startsWith('/workout') && workout.chatModeEnabled ? <ChatPanel /> : null}
         <MobileDock />
       </div>
     </div>

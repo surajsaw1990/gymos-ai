@@ -20,11 +20,63 @@ function resolveRecoveryStatus(recovery) {
   return 'Watch';
 }
 
+function createMessage(role, text) {
+  return {
+    id: `${role}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    role,
+    text,
+  };
+}
+
+function createCoachReply({
+  currentExercise,
+  nextQueuedExercise,
+  restSecondsRemaining,
+  sessionComplete,
+  text,
+  userProfile,
+}) {
+  const normalized = text.toLowerCase();
+
+  if (sessionComplete) {
+    return 'Session is complete. Walk it down, hydrate, and restart only when you are ready for another clean round.';
+  }
+
+  if (normalized.includes('rest') || normalized.includes('timer')) {
+    return restSecondsRemaining > 0
+      ? `Rest timer is at ${formatTimer(restSecondsRemaining)}. Breathe through the nose and keep the next set crisp.`
+      : `Rest window is clear. Start the next effort whenever your breathing feels settled.`;
+  }
+
+  if (normalized.includes('next') || normalized.includes('after')) {
+    return nextQueuedExercise
+      ? `After ${currentExercise.name}, you roll into ${nextQueuedExercise.name}. Keep the transition quiet and efficient.`
+      : `You are on the final movement. Finish clean, then the session closes without extra filler.`;
+  }
+
+  if (normalized.includes('form') || normalized.includes('technique')) {
+    return currentExercise.notes;
+  }
+
+  if (normalized.includes('hard') || normalized.includes('intensity')) {
+    return userProfile.goal === 'strength'
+      ? 'Push the working sets hard, but keep one clean rep in reserve. The goal is output, not grind.'
+      : 'Keep the effort smooth and repeatable. The system is rewarding quality and consistency more than chaos.';
+  }
+
+  return `Stay centered on ${currentExercise.name}. ${nextQueuedExercise ? `Up next is ${nextQueuedExercise.name}.` : 'This is the closing block, so finish sharp.'}`;
+}
+
 export function useWorkout() {
   const { state, dispatch } = useAppState();
   const { workout, analytics, userProfile } = state;
   const currentExercise = workout.queue[workout.currentExerciseIndex] || workout.queue[0];
   const nextQueuedExercise = workout.queue[workout.currentExerciseIndex + 1];
+  const sessionStateLabel = workout.sessionComplete
+    ? 'Session complete'
+    : workout.sessionActive
+      ? 'Active session'
+      : 'Ready to train';
 
   const session = {
     title: workout.programTitle,
@@ -34,15 +86,23 @@ export function useWorkout() {
         ? `Set ${workout.currentSet} of ${currentExercise.sets}`
         : 'Ready to start',
     recovery: resolveRecoveryStatus(analytics.recovery),
-    nextExercise: currentExercise.name,
+    nextExercise: workout.sessionComplete ? 'All movements complete' : currentExercise.name,
     restTimer: formatTimer(workout.restSecondsRemaining),
-    notes: currentExercise.notes,
+    notes: workout.sessionComplete
+      ? 'You closed the full block cleanly. Restart when you want another focused round.'
+      : currentExercise.notes,
     blockLabel:
       userProfile.goal === 'strength'
         ? 'Heavy neural'
         : userProfile.goal === 'discipline'
           ? 'Consistency block'
           : 'Hybrid progression',
+    description: workout.sessionComplete
+      ? 'The session is complete. The queue is frozen until you choose to restart.'
+      : workout.sessionActive
+        ? `Current movement: ${currentExercise.name}. Rest pacing stays visible and the next decision remains obvious.`
+        : 'Start the session to activate live set tracking, rest pacing, and the in-gym coaching layer.',
+    stateLabel: sessionStateLabel,
   };
 
   const workoutStats = [
@@ -131,6 +191,7 @@ export function useWorkout() {
   ];
 
   return {
+    chatMessages: workout.chatMessages,
     coachCues,
     currentExercise,
     exerciseItems,
@@ -153,6 +214,36 @@ export function useWorkout() {
     },
     reorderBlock() {
       dispatch({ type: 'ROTATE_WORKOUT_QUEUE' });
+    },
+    resetRestTimer() {
+      dispatch({ type: 'RESET_WORKOUT_TIMER' });
+    },
+    sendChatMessage(text) {
+      const cleanText = text.trim();
+
+      if (!cleanText) {
+        return;
+      }
+
+      dispatch({
+        type: 'APPEND_WORKOUT_CHAT_MESSAGES',
+        payload: {
+          messages: [
+            createMessage('user', cleanText),
+            createMessage(
+              'assistant',
+              createCoachReply({
+                currentExercise,
+                nextQueuedExercise,
+                restSecondsRemaining: workout.restSecondsRemaining,
+                sessionComplete: workout.sessionComplete,
+                text: cleanText,
+                userProfile,
+              }),
+            ),
+          ],
+        },
+      });
     },
   };
 }

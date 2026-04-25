@@ -54,6 +54,18 @@ const initialState = {
     currentSet: 1,
     restSecondsRemaining: 0,
     chatModeEnabled: false,
+    chatMessages: [
+      {
+        id: 'coach-welcome',
+        role: 'assistant',
+        text: 'Coach is standing by. Ask about pacing, form, or how hard tonight should feel.',
+      },
+      {
+        id: 'coach-focus',
+        role: 'assistant',
+        text: 'Current plan favors controlled strength work with clean rest windows.',
+      },
+    ],
   },
   diet: {
     dailyBudget: 11.4,
@@ -215,6 +227,22 @@ function appStateReducer(state, action) {
         },
       };
 
+    case 'RESET_WORKOUT_TIMER': {
+      const currentExercise = state.workout.queue[state.workout.currentExerciseIndex];
+
+      if (!state.workout.sessionActive || !currentExercise) {
+        return state;
+      }
+
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          restSecondsRemaining: currentExercise.restSeconds,
+        },
+      };
+    }
+
     case 'COMPLETE_WORKOUT_SET': {
       if (!state.workout.sessionActive) {
         return state;
@@ -257,8 +285,8 @@ function appStateReducer(state, action) {
           ...state.workout,
           sessionActive: false,
           sessionComplete: true,
-          currentExerciseIndex: 0,
-          currentSet: 1,
+          currentExerciseIndex: state.workout.currentExerciseIndex,
+          currentSet: currentExercise.sets,
           restSecondsRemaining: 0,
         },
       };
@@ -270,6 +298,15 @@ function appStateReducer(state, action) {
         workout: {
           ...state.workout,
           chatModeEnabled: !state.workout.chatModeEnabled,
+        },
+      };
+
+    case 'APPEND_WORKOUT_CHAT_MESSAGES':
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          chatMessages: [...state.workout.chatMessages, ...action.payload.messages],
         },
       };
 
