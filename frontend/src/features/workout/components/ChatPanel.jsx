@@ -15,6 +15,8 @@ export function ChatPanel() {
     isChatPending,
     isSessionActive,
     isSessionComplete,
+    trainerName,
+    userName,
     session,
     sendChatMessage,
     toggleChatMode,
@@ -92,8 +94,9 @@ export function ChatPanel() {
                   Workout Chat Mode
                 </p>
                 <h3 className="mt-2 font-display text-xl font-semibold tracking-tight text-white">
-                  Coach is live
+                  {trainerName} is live
                 </h3>
+                <p className="mt-1 text-xs text-slate-500">{userName}&apos;s personal trainer chat</p>
               </div>
               <button
                 type="button"
@@ -162,8 +165,8 @@ export function ChatPanel() {
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder={
                   isSessionComplete
-                    ? 'Ask for a recovery or restart suggestion'
-                    : `Ask about ${currentExercise.name.toLowerCase()}`
+                    ? 'Ask for recovery or tomorrow’s plan'
+                    : `Ask ${trainerName} about ${currentExercise.name.toLowerCase()}`
                 }
                 className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
               />

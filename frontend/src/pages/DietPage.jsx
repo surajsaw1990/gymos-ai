@@ -16,14 +16,19 @@ export default function DietPage() {
   useDocumentTitle('Diet');
   const {
     budgetLabel,
-    dinnerLogged,
+    dayTypeLabel,
+    dietPlan,
     dietStats,
+    dinnerLogged,
+    feedbackMessage,
     groceryItems,
     isGroceryPreviewOpen,
     lastDinnerLog,
     logDinnerPlan,
     macroSplit,
+    mealSuggestion,
     mealTimeline,
+    postWorkoutMeal,
     proteinRemaining,
     refreshIdeas,
     remainingBudget,
@@ -62,16 +67,16 @@ export default function DietPage() {
       animate="animate"
     >
       <PageHeader
-        eyebrow="Diet Screen Shell"
-        title="Nutrition should feel premium, not spreadsheet-heavy."
-        mobileTitle="Diet shell"
-        description="The diet shell pairs budget awareness with clean macro visibility, simple meal timing, and tasteful swap suggestions that respect real daily constraints."
-        mobileDescription="Budget-smart meals, clean macros, and simple swaps."
-        meta={['Budget-based diet engine', 'Meal timing ready', 'Macro-safe layout']}
+        eyebrow="Diet"
+        title="Diet should feel like a trainer’s meal guidance, not a spreadsheet."
+        mobileTitle="Diet guidance"
+        description="This screen now uses your goal, body weight, food preference, budget, and workout day state to suggest simple Indian meals that actually fit real life."
+        mobileDescription="Protein target, Indian meals, and budget-smart guidance."
+        meta={['Weight-based protein', 'Indian meal ideas', 'Budget-aware diet']}
         actions={
           <>
             <Button loading={isLoggingDinner} onClick={handleDinnerLog}>
-              Log dinner plan
+              Log dinner
             </Button>
             <Button variant="secondary" onClick={toggleGroceryPreview}>
               {isGroceryPreviewOpen ? 'Hide grocery view' : 'Open grocery view'}
@@ -91,23 +96,24 @@ export default function DietPage() {
           <div className="hidden flex-wrap items-center gap-3 sm:flex">
             <Badge icon="leaf">{budgetLabel}</Badge>
             <Badge icon="chart" tone="neutral">
+              {dayTypeLabel}
+            </Badge>
+            <Badge icon="dumbbell" tone="neutral">
               {proteinRemaining > 0 ? `${proteinRemaining}g protein left` : 'Protein target covered'}
             </Badge>
           </div>
           <h3 className="mt-1 font-display text-[1.6rem] leading-[1.05] font-semibold tracking-tight text-white sm:mt-6 sm:text-3xl">
             {dinnerLogged
-              ? 'Dinner is logged and the budget engine stayed efficient.'
-              : 'The budget engine is keeping today efficient.'}
+              ? `${lastDinnerLog?.mealTitle || 'Dinner'} is logged and the budget stayed clean.`
+              : `${mealSuggestion} is the smart move for tonight.`}
           </h3>
           <p className="mt-2.5 max-w-2xl text-sm leading-6 text-slate-400 sm:mt-3 sm:leading-7">
-            {dinnerLogged
-              ? `You still have $${remainingBudget.toFixed(2)} available, and the dinner slot is now helping close the protein target without drifting away from budget.`
-              : 'You still have enough room for a protein-forward dinner without losing control of total spend or late-night appetite management.'}
+            Protein target is {dietPlan.proteinTarget}g, your current budget has ${remainingBudget.toFixed(2)} left, and {postWorkoutMeal.toLowerCase()} is set as the easiest post-workout close.
           </p>
 
-          {lastDinnerLog ? (
+          {feedbackMessage ? (
             <div className="panel-muted mt-4 rounded-[20px] px-4 py-3 text-sm leading-6 text-slate-300 sm:mt-5 sm:rounded-[24px] sm:py-4 sm:leading-7">
-              Logged dinner: +{lastDinnerLog.proteinGain}g protein, +{lastDinnerLog.carbGain}g carbs, +{lastDinnerLog.fatGain}g fats for ${lastDinnerLog.spend.toFixed(2)}.
+              {feedbackMessage}
             </div>
           ) : null}
 
@@ -117,8 +123,8 @@ export default function DietPage() {
         </Panel>
 
         <StatePanel
-          title="Smart swaps"
-          description="Swap suggestions are framed as clean upgrades, not punishment."
+          title="Affordable meal logic"
+          description="Suggestions stay realistic, Indian, and aligned to your profile."
           action={
             <Button variant="ghost" onClick={refreshIdeas}>
               Refresh ideas
@@ -144,7 +150,7 @@ export default function DietPage() {
       <motion.section className="grid gap-4 sm:gap-6 xl:grid-cols-[1.1fr_0.9fr]" variants={fadeUp}>
         <StatePanel
           title="Meal timeline"
-          description="Simple time-based structure makes the diet screen feel calm and actionable."
+          description="Your timeline now reads like a trainer’s day plan instead of a placeholder diet shell."
         >
           <MealTimeline meals={mealTimeline} />
         </StatePanel>
@@ -153,13 +159,13 @@ export default function DietPage() {
           title="Grocery capture"
           description={
             isGroceryPreviewOpen
-              ? 'A compact grocery preview keeps ingredients, budget, and dinner planning in one calm surface.'
-              : 'The layout stays composed even before the user starts tracking ingredients.'
+              ? 'Ingredients, budget, and recovery foods stay in one compact surface.'
+              : 'The shell stays stable even before you open the grocery preview.'
           }
           isEmpty={!isGroceryPreviewOpen}
           emptyIcon="leaf"
           emptyTitle="No grocery items captured yet"
-          emptyDescription="Add pantry items, recurring staples, or local-price ingredients and this panel can evolve into a budget-aware shopping view."
+          emptyDescription="Open the grocery view and the app will surface the staples that fit your protein target and budget pattern."
         >
           <div className="space-y-2.5 sm:space-y-3">
             {groceryItems.map((item) => (

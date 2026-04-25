@@ -56,11 +56,11 @@ export default function AnalyticsPage() {
     >
       <PageHeader
         eyebrow="Analytics / Progress"
-        title="Progress intelligence that feels cinematic, not clinical."
-        mobileTitle="Progress shell"
-        description="The analytics shell translates raw progress into clear momentum: body trend, strength trajectory, and discipline stability, all without drowning the user in charts."
-        mobileDescription="Clear momentum across body trend, strength, and discipline."
-        meta={['Progress prediction', 'Transformation-ready', 'Empty-safe check-ins']}
+        title="Progress intelligence that feels believable, personal, and calm."
+        mobileTitle="Progress intelligence"
+        description="Forecasts now read from your profile, training cadence, dinner status, and workout plan so the predictions move in realistic ranges instead of feeling random."
+        mobileDescription="Believable progress, stable trends, and trainer-style notes."
+        meta={['Stable projections', 'Profile-aware notes', 'Check-in ready']}
         actions={
           <>
             <Button loading={isRefreshingPrediction} onClick={handleRefreshPrediction}>
@@ -74,7 +74,10 @@ export default function AnalyticsPage() {
       />
 
       {lastRefreshSummary ? (
-        <motion.div className="panel-muted rounded-[22px] px-4 py-3.5 text-sm leading-6 text-slate-300 sm:rounded-[24px] sm:py-4 sm:leading-7" variants={fadeUp}>
+        <motion.div
+          className="panel-muted rounded-[22px] px-4 py-3.5 text-sm leading-6 text-slate-300 sm:rounded-[24px] sm:py-4 sm:leading-7"
+          variants={fadeUp}
+        >
           {lastRefreshSummary}
         </motion.div>
       ) : null}
@@ -87,15 +90,15 @@ export default function AnalyticsPage() {
 
       <motion.section className="grid gap-4 sm:gap-6 xl:grid-cols-[1.08fr_0.92fr]" variants={fadeUp}>
         <StatePanel
-          title="Body recomposition trend"
-          description="A restrained bar treatment keeps the screen premium while still showing momentum."
+          title="Body trend"
+          description="Trends stay smooth and believable so this screen feels stable under repeated refreshes."
         >
           <TrendBars items={bodyTrend} />
         </StatePanel>
 
         <StatePanel
           title="Strength projection"
-          description="Progress Prediction can turn training consistency into projected lift targets."
+          description="Targets are small, believable, and tied to how you are actually training."
         >
           <ProjectionList items={strengthProjection} />
         </StatePanel>
@@ -103,8 +106,8 @@ export default function AnalyticsPage() {
 
       <motion.section className="grid gap-4 sm:gap-6 xl:grid-cols-[0.95fr_1.05fr]" variants={fadeUp}>
         <StatePanel
-          title="Discipline engine notes"
-          description="The app treats adherence as a first-class metric, not an afterthought."
+          title="Trainer notes"
+          description="The discipline engine is now written like a coach note instead of a placeholder feed."
         >
           <div className="space-y-2.5 sm:space-y-3">
             {consistencyFeed.map((item) => (
@@ -122,20 +125,20 @@ export default function AnalyticsPage() {
           title="Body transformation visualizer"
           description={
             hasCapture
-              ? 'Recent capture metadata is flowing into the visualizer shell without breaking the premium layout.'
-              : 'Media-dependent surfaces stay elegant even before uploads exist.'
+              ? 'Recent capture metadata is now flowing into the visualizer shell without breaking layout.'
+              : 'The visualizer stays elegant even before the user uploads anything.'
           }
           isEmpty={!hasCapture}
           emptyIcon="body"
           emptyTitle="No progress captures uploaded yet"
-          emptyDescription="Once front, side, or milestone check-ins are added, this area can evolve into a premium transformation visualizer with comparison and future-state previews."
+          emptyDescription="Capture a new check-in and this area will hold the latest comparison frame for your transformation flow."
         >
           <div className="space-y-2.5 sm:space-y-3">
             <div className="panel-muted rounded-[22px] px-4 py-3.5 sm:rounded-[24px] sm:py-4">
               <p className="text-xs tracking-[0.22em] text-brand-300 uppercase">Latest capture</p>
               <p className="mt-2 font-medium text-white">{latestCaptureLabel}</p>
               <p className="mt-1.5 text-sm leading-6 text-slate-400 sm:mt-2 sm:leading-7">
-                The next visualizer pass can use this checkpoint as the newest comparison frame.
+                The trainer can use this frame as the newest progress checkpoint.
               </p>
             </div>
             {consistencyFeed.slice(0, 2).map((item) => (

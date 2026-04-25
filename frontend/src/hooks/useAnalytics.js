@@ -22,25 +22,25 @@ function parseWeight(weightLabel) {
 
 export function useAnalytics() {
   const { state, dispatch } = useAppState();
-  const { analytics, userProfile, diet } = state;
+  const { analytics, userProfile, diet, workout } = state;
 
   const analyticsStats = [
     {
-      label: 'Projected recomposition',
+      label: 'Projected runway',
       value: `${analytics.projectedWeeks} weeks`,
-      detail: 'Forecast assumes current recovery and diet adherence stay steady.',
+      detail: `Forecast is using your ${userProfile.goal.replace('_', ' ')}, ${userProfile.workoutDaysPerWeek}-day cadence, and recovery at ${analytics.recovery}%.`,
       icon: 'chart',
     },
     {
       label: 'Strength slope',
       value: `+${analytics.strengthSlope.toFixed(1)}%`,
-      detail: 'Compound lifts are still trending upward without overload warnings.',
+      detail: `${userProfile.trainerName} is keeping lift progress believable for a ${userProfile.experienceLevel} athlete.`,
       icon: 'dumbbell',
     },
     {
       label: 'Discipline score',
       value: `${analytics.disciplineScore}`,
-      detail: `Habit engine confidence is anchored to your ${userProfile.cadence} cadence.`,
+      detail: `Reminder mode ${userProfile.reminders} and ${userProfile.tone} coaching are keeping adherence stable.`,
       icon: 'streak',
     },
   ];
@@ -58,26 +58,26 @@ export function useAnalytics() {
     streak: analytics.streak,
     strengthProjection: analytics.strengthProjection,
     refreshPrediction() {
-      const nextRecovery = clamp(analytics.recovery + randomInteger(-2, 2), 82, 95);
+      const nextRecovery = clamp(analytics.recovery + randomInteger(-2, 2), 80, 95);
       const nextProjectedWeeks = clamp(
         analytics.projectedWeeks + randomInteger(-1, 1),
-        5,
-        7,
+        4,
+        12,
       );
       const nextStrengthSlope = clamp(
-        analytics.strengthSlope + randomFloat(-0.3, 0.45),
-        8.1,
-        11.2,
+        analytics.strengthSlope + randomFloat(-0.25, 0.35),
+        6.8,
+        12.8,
       );
       const nextDisciplineScore = clamp(
-        analytics.disciplineScore + randomInteger(-1, 2),
-        88,
-        97,
+        analytics.disciplineScore + randomInteger(-1, 1),
+        80,
+        99,
       );
       const nextStreak = analytics.streak + randomInteger(0, 1);
       const nextBodyTrend = analytics.bodyTrend.map((item, index) => ({
         ...item,
-        value: clamp(item.value + randomInteger(index < 2 ? 0 : 0, 2), 50, 92),
+        value: clamp(item.value + randomInteger(index < 2 ? 0 : 0, 1), 48, 96),
       }));
       const nextStrengthProjection = analytics.strengthProjection.map((item, index) => {
         const currentWeight = parseWeight(item.current);
@@ -91,7 +91,7 @@ export function useAnalytics() {
           target: formatWeight(targetWeight + randomInteger(0, 1) * targetStep),
         };
       });
-      const refreshSummary = `Forecast refreshed: recovery ${nextRecovery}%, strength slope +${nextStrengthSlope.toFixed(1)}%, projection holding near ${nextProjectedWeeks} weeks.`;
+      const refreshSummary = `${userProfile.trainerName} refreshed the forecast: recovery ${nextRecovery}%, slope +${nextStrengthSlope.toFixed(1)}%, and your ${userProfile.goal.replace('_', ' ')} timeline is still holding near ${nextProjectedWeeks} weeks.`;
 
       dispatch({
         type: 'SET_ANALYTICS_SNAPSHOT',
@@ -106,10 +106,12 @@ export function useAnalytics() {
           lastRefreshSummary: refreshSummary,
           consistencyFeed: [
             refreshSummary,
-            `Discipline remains steady at ${nextDisciplineScore} with cadence ${userProfile.cadence}.`,
+            workout.plan.isWorkoutDay
+              ? `${workout.plan.dayLabel} still matches your recovery state, so today's plan stays believable.`
+              : 'Recovery day guidance still looks right, so the system is not forcing unnecessary load.',
             diet.dinnerLogged
-              ? 'Dinner is logged, which keeps the current forecast grounded and believable.'
-              : 'Dinner planning is still the clearest lever for a slightly better forecast.',
+              ? `${diet.lastDinnerLog?.mealTitle || 'Dinner'} is logged, so nutrition confidence stays high.`
+              : `Nutrition is still the cleanest lever because your ${diet.remainingBudget.toFixed(2)} budget remains open.`,
           ],
         },
       });
@@ -121,7 +123,7 @@ export function useAnalytics() {
         type: 'CAPTURE_ANALYTICS_CHECKIN',
         payload: {
           label,
-          feedItem: `${label}. Body Transformation Visualizer can now use a fresh reference frame.`,
+          feedItem: `${label}. ${userProfile.trainerName} can now compare the new frame against your current ${userProfile.goal.replace('_', ' ')} trend.`,
         },
       });
     },

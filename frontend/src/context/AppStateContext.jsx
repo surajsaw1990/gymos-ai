@@ -1,53 +1,149 @@
 import { createContext, useContext, useEffect, useReducer } from 'react';
+import {
+  buildDietPlan,
+  buildTrainerGreeting,
+  createDefaultProfile,
+  createReplacementExercise,
+  generateWorkoutPlan,
+  sanitizeProfile,
+} from '@/services/trainerEngine';
 
-const workoutQueueSeed = [
-  {
-    name: 'Incline bench press',
-    sets: 4,
-    reps: 5,
-    readiness: 'Prime',
-    notes: 'Grip looked stable. Tempo can slow slightly on the eccentric.',
-    restSeconds: 78,
-  },
-  {
-    name: 'Chest-supported row',
-    sets: 4,
-    reps: 6,
-    readiness: 'Stable',
-    notes: 'Drive elbows back and keep the torso quiet through each rep.',
-    restSeconds: 72,
-  },
-  {
-    name: 'Cable lateral raise',
-    sets: 3,
-    reps: 12,
-    readiness: 'Controlled',
-    notes: 'Float the load upward and avoid shrugging through the top.',
-    restSeconds: 56,
-  },
-  {
-    name: 'Farmer carry finisher',
-    sets: 3,
-    reps: 35,
-    unit: 'm',
-    readiness: 'Optional',
-    notes: 'Brace hard, walk tall, and keep the pace measured.',
-    restSeconds: 45,
-  },
-];
+const STORAGE_KEY = 'gymos-ai-app-state-v4';
 
-const initialState = {
-  userProfile: {
-    goal: 'recomp',
-    cadence: '4x',
-    budget: 'balanced',
-    tone: 'calm',
-    reminders: 'smart',
-    savedAt: null,
-  },
-  workout: {
-    programTitle: 'Push / Pull Neural Primer',
-    queue: workoutQueueSeed,
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function roundToStep(value, step = 2.5) {
+  return Math.round(value / step) * step;
+}
+
+function formatWeight(value) {
+  return `${Number(value.toFixed(1))} kg`;
+}
+
+function createMessage(role, text) {
+  return {
+    id: `${role}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    role,
+    text,
+  };
+}
+
+function buildBodyTrend(profile) {
+  const start = profile.goal === 'fat_loss' ? 54 : profile.goal === 'muscle_gain' ? 58 : 56;
+  const delta = profile.goal === 'strength' ? 7 : profile.goal === 'muscle_gain' ? 6 : 5;
+
+  return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((label, index) => ({
+    label,
+    value: start + index * delta,
+  }));
+}
+
+function buildStrengthProjection(profile) {
+  const weight = Number.parseFloat(profile.weightKg || '74');
+  const experienceMultiplier =
+    profile.experienceLevel === 'advanced'
+      ? 1.2
+      : profile.experienceLevel === 'beginner'
+        ? 0.76
+        : 1;
+  const goalMultiplier =
+    profile.goal === 'strength' ? 1.08 : profile.goal === 'muscle_gain' ? 1.03 : 0.98;
+  const benchCurrent = roundToStep(weight * 0.72 * experienceMultiplier * goalMultiplier, 2.5);
+  const rowCurrent = roundToStep(weight * 0.8 * experienceMultiplier, 2.5);
+  const hingeCurrent = roundToStep(weight * 1.55 * experienceMultiplier, 2.5);
+
+  return [
+    {
+      lift: 'Bench press',
+      current: formatWeight(benchCurrent),
+      target: formatWeight(benchCurrent + 7.5),
+    },
+    {
+      lift: 'Chest-supported row',
+      current: formatWeight(rowCurrent),
+      target: formatWeight(rowCurrent + 5),
+    },
+    {
+      lift: 'Trap bar deadlift',
+      current: formatWeight(hingeCurrent),
+      target: formatWeight(hingeCurrent + 10),
+    },
+  ];
+}
+
+function buildConsistencyFeed(profile, analytics) {
+  return [
+    `${profile.trainerName || 'Coach Arjun'} is tuning your ${profile.workoutDaysPerWeek}-day ${profile.preferredSplit.replaceAll('-', ' ')} rhythm around ${profile.goal.replace('_', ' ')}.`,
+    `${profile.foodPreference} meals are being shaped around a ${profile.dailyBudget} daily budget while protecting recovery at ${analytics.recovery}%.`,
+    `${profile.tone} coaching is active in ${profile.language}, with reminders set to ${profile.reminders}.`,
+  ];
+}
+
+function createAnalyticsState(profile, previousAnalytics = {}) {
+  const baseProjectedWeeks =
+    profile.goal === 'fat_loss' ? 8 : profile.goal === 'muscle_gain' ? 10 : 6;
+  const recoveryBase =
+    profile.experienceLevel === 'advanced'
+      ? 89
+      : profile.experienceLevel === 'beginner'
+        ? 84
+        : 87;
+
+  const analytics = {
+    streak: clamp(previousAnalytics.streak ?? 18, 1, 365),
+    recovery: clamp(previousAnalytics.recovery ?? recoveryBase, 78, 95),
+    projectedWeeks: clamp(previousAnalytics.projectedWeeks ?? baseProjectedWeeks, 4, 12),
+    strengthSlope: Number(
+      clamp(previousAnalytics.strengthSlope ?? 9.4, 6.4, 12.6).toFixed(1),
+    ),
+    disciplineScore: clamp(previousAnalytics.disciplineScore ?? 91, 78, 99),
+    bodyTrend: previousAnalytics.bodyTrend?.length
+      ? previousAnalytics.bodyTrend
+      : buildBodyTrend(profile),
+    strengthProjection: previousAnalytics.strengthProjection?.length
+      ? previousAnalytics.strengthProjection
+      : buildStrengthProjection(profile),
+    consistencyFeed: previousAnalytics.consistencyFeed?.length
+      ? previousAnalytics.consistencyFeed
+      : [],
+    lastRefreshSummary: previousAnalytics.lastRefreshSummary || '',
+    hasCapture: Boolean(previousAnalytics.hasCapture),
+    latestCaptureLabel: previousAnalytics.latestCaptureLabel || '',
+  };
+
+  if (!analytics.consistencyFeed.length) {
+    analytics.consistencyFeed = buildConsistencyFeed(profile, analytics);
+  }
+
+  return analytics;
+}
+
+function buildInitialChatMessages(profile, plan) {
+  const trainerName = profile.trainerName || 'Coach Arjun';
+  const focusCopy =
+    profile.language === 'english'
+      ? `${trainerName}: today's focus is ${plan.todayFocus}. ${plan.whyThisWorkout}`
+      : profile.language === 'hindi'
+        ? `${trainerName}: aaj focus ${plan.todayFocus} hai. ${plan.whyThisWorkout}`
+        : `${trainerName}: aaj focus ${plan.todayFocus} hai. ${plan.whyThisWorkout}`;
+
+  return [createMessage('assistant', buildTrainerGreeting(profile)), createMessage('assistant', focusCopy)];
+}
+
+function createWorkoutState(profile, analytics, previousWorkout = {}, options = {}) {
+  const easyMode = options.easyMode ?? previousWorkout.easyMode ?? false;
+  const plan = generateWorkoutPlan(profile, analytics.recovery, new Date(), easyMode);
+  const chatMessages =
+    !options.resetChat && previousWorkout.chatMessages?.length
+      ? previousWorkout.chatMessages
+      : buildInitialChatMessages(profile, plan);
+
+  return {
+    programTitle: plan.title,
+    plan,
+    queue: plan.exercises,
     sessionActive: false,
     sessionComplete: false,
     currentExerciseIndex: 0,
@@ -56,196 +152,174 @@ const initialState = {
     sessionStartedAt: null,
     sessionSummary: null,
     restSecondsRemaining: 0,
-    chatModeEnabled: false,
+    chatModeEnabled: Boolean(options.chatModeEnabled ?? previousWorkout.chatModeEnabled),
     chatPending: false,
-    chatMessages: [
-      {
-        id: 'coach-welcome',
-        role: 'assistant',
-        text: 'Coach is standing by. Ask about pacing, form, or how hard tonight should feel.',
-      },
-      {
-        id: 'coach-focus',
-        role: 'assistant',
-        text: 'Current plan favors controlled strength work with clean rest windows.',
-      },
-    ],
-  },
-  diet: {
-    dailyBudget: 11.4,
-    remainingBudget: 2.55,
-    proteinTarget: 148,
-    proteinConsumed: 117,
-    carbsConsumed: 136,
-    fatsConsumed: 47,
-    adherence: 92,
-    dinnerLogCount: 0,
-    dinnerLogged: false,
-    lastDinnerLog: null,
-    macroSplit: [
-      { label: 'Protein', value: 39, color: 'bg-brand-400' },
-      { label: 'Carbs', value: 45, color: 'bg-mint-400' },
-      { label: 'Fats', value: 16, color: 'bg-sky-400' },
-    ],
-    mealTimeline: [
-      {
-        time: '08:00',
-        title: 'Greek yogurt bowl',
-        detail: 'Budget-friendly protein start with berries and oats.',
-        cost: '$2.10',
-      },
-      {
-        time: '13:00',
-        title: 'Chicken rice box',
-        detail: 'High satiety lunch tuned to workout timing.',
-        cost: '$3.80',
-      },
-      {
-        time: '18:30',
-        title: 'Dinner slot open',
-        detail: 'AI suggests eggs, potatoes, and spinach to close macros cheaply.',
-        cost: '$2.95',
-      },
-    ],
-    smartSwaps: [
-      {
-        title: 'Swap protein bar for yogurt',
-        detail: 'Saves $1.40 with similar protein and better satiety.',
-      },
-      {
-        title: 'Use frozen vegetables tonight',
-        detail: 'Keeps micronutrients up while lowering per-meal spend.',
-      },
-      {
-        title: 'Push fruit to post-dinner',
-        detail: 'Improves fullness and reduces snacking risk later tonight.',
-      },
-    ],
-    groceryPreviewOpen: false,
-    groceryItems: [
-      { name: 'Greek yogurt cups', detail: '2 servings for tomorrow breakfast' },
-      { name: 'Frozen spinach', detail: 'Budget-friendly micronutrient add-on' },
-      { name: 'Eggs + potatoes', detail: 'Reliable high-satiety dinner close' },
-    ],
-  },
-  analytics: {
-    streak: 18,
-    recovery: 87,
-    projectedWeeks: 6,
-    strengthSlope: 9.4,
-    disciplineScore: 91,
-    bodyTrend: [
-      { label: 'Jan', value: 52 },
-      { label: 'Feb', value: 58 },
-      { label: 'Mar', value: 64 },
-      { label: 'Apr', value: 72 },
-      { label: 'May', value: 79 },
-      { label: 'Jun', value: 88 },
-    ],
-    strengthProjection: [
-      {
-        lift: 'Bench press',
-        current: '82.5 kg',
-        target: '90 kg',
-      },
-      {
-        lift: 'Barbell row',
-        current: '77.5 kg',
-        target: '85 kg',
-      },
-      {
-        lift: 'Trap bar deadlift',
-        current: '140 kg',
-        target: '152.5 kg',
-      },
-    ],
-    consistencyFeed: [
-      'Recovery fatigue dipped mid-week, but training compliance stayed intact.',
-      'Smart Challenges predicts high adherence if workout start time stays after 6 PM.',
-      'Body Transformation Visualizer is waiting for the next progress capture.',
-    ],
-    lastRefreshSummary: '',
-    hasCapture: false,
-    latestCaptureLabel: '',
-  },
-};
-
-function rotateArray(items) {
-  if (items.length < 2) {
-    return items;
-  }
-
-  return [...items.slice(1), items[0]];
+    chatMessages,
+    muscleFocusKey: plan.defaultMuscleFocusKey,
+    easyMode,
+    feedbackMessage: options.feedbackMessage || '',
+  };
 }
 
-function updateMealTimeline(diet, dinnerTitle, dinnerDetail, dinnerCost) {
-  return diet.mealTimeline.map((meal, index) =>
-    index === 2
-      ? {
-          ...meal,
-          title: dinnerTitle,
-          detail: dinnerDetail,
-          cost: `$${dinnerCost.toFixed(2)}`,
-        }
-      : meal,
+function createDietState(profile, workoutPlan, previousDiet = {}) {
+  const dietPlan = buildDietPlan(profile, workoutPlan.isWorkoutDay);
+  const defaultRemainingBudget = Number(
+    Math.max(0, dietPlan.dailyBudget - (workoutPlan.isWorkoutDay ? 4.7 : 3.8)).toFixed(2),
   );
+  const defaultProtein = Math.max(
+    0,
+    dietPlan.proteinTarget - (workoutPlan.isWorkoutDay ? 36 : 48),
+  );
+
+  return {
+    dailyBudget: dietPlan.dailyBudget,
+    proteinTarget: dietPlan.proteinTarget,
+    proteinConsumed: clamp(previousDiet.proteinConsumed ?? defaultProtein, 0, dietPlan.proteinTarget + 80),
+    carbsConsumed: clamp(
+      previousDiet.carbsConsumed ?? (workoutPlan.isWorkoutDay ? 142 : 116),
+      0,
+      420,
+    ),
+    fatsConsumed: clamp(previousDiet.fatsConsumed ?? 46, 0, 160),
+    remainingBudget: Number(
+      clamp(previousDiet.remainingBudget ?? defaultRemainingBudget, 0, dietPlan.dailyBudget).toFixed(2),
+    ),
+    adherence: clamp(previousDiet.adherence ?? 92, 72, 100),
+    dinnerLogCount: previousDiet.dinnerLogCount ?? 0,
+    dinnerLogged: Boolean(previousDiet.dinnerLogged),
+    lastDinnerLog: previousDiet.lastDinnerLog || null,
+    groceryPreviewOpen: Boolean(previousDiet.groceryPreviewOpen),
+    swapRotation: previousDiet.swapRotation ?? 0,
+    feedbackMessage: previousDiet.feedbackMessage || '',
+  };
+}
+
+function createAuthState(profile, previousAuth = {}) {
+  return {
+    isLoggedIn: Boolean(previousAuth.isLoggedIn),
+    phoneNumber: previousAuth.phoneNumber || profile.phoneNumber || '',
+    otpCode: '',
+    otpRequestedAt: null,
+    otpVerifiedAt: previousAuth.otpVerifiedAt || null,
+  };
+}
+
+function buildWorkoutSuccessMessage(profile) {
+  if (profile.goal === 'strength') {
+    return `${profile.trainerName || 'Coach Arjun'} liked that session. Strong top sets, clean pacing, and no wasted reps.`;
+  }
+
+  if (profile.goal === 'fat_loss') {
+    return `${profile.trainerName || 'Coach Arjun'} locked in a high-quality burn without turning the session messy.`;
+  }
+
+  if (profile.goal === 'muscle_gain') {
+    return `${profile.trainerName || 'Coach Arjun'} got the volume in with clean form. That is how size work compounds.`;
+  }
+
+  return `${profile.trainerName || 'Coach Arjun'} kept the session efficient and repeatable. That is exactly how recomposition stacks.`;
 }
 
 function sumWorkoutSets(queue) {
-  return queue.reduce((total, item) => total + item.sets, 0);
-}
-
-function buildWorkoutSuccessMessage(goal) {
-  if (goal === 'strength') {
-    return 'Strength work landed cleanly. Recovery can stay calm because the hard sets were focused, not noisy.';
-  }
-
-  if (goal === 'discipline') {
-    return 'Another disciplined session is locked in. The win here is clean completion with zero wasted motion.';
-  }
-
-  return 'The session closed with strong pacing and clean adherence. That is exactly how recomposition stacks over time.';
+  return queue.reduce((total, item) => total + (item.sets || 0), 0);
 }
 
 function buildWorkoutSummary(state, totalSetsCompleted) {
   const elapsedMinutes = state.workout.sessionStartedAt
     ? Math.max(1, Math.round((Date.now() - state.workout.sessionStartedAt) / 60000))
     : 1;
-  const mockDurationMinutes = Math.max(
+  const believableDuration = Math.max(
     24,
-    Math.round(totalSetsCompleted * 2.4 + state.workout.queue.length * 1.8),
+    Math.round(totalSetsCompleted * 2.3 + state.workout.queue.length * 1.75),
   );
-  const durationMinutes = Math.max(elapsedMinutes, mockDurationMinutes);
+  const durationMinutes = Math.max(elapsedMinutes, believableDuration);
 
   return {
     totalSetsCompleted,
     totalPlannedSets: sumWorkoutSets(state.workout.queue),
     durationMinutes,
     durationLabel: `${durationMinutes} min`,
-    message: buildWorkoutSuccessMessage(state.userProfile.goal),
+    message: buildWorkoutSuccessMessage(state.userProfile),
   };
 }
 
-function buildMacroSplit(protein, carbs, fats) {
-  const total = protein + carbs + fats;
+function rebuildDerivedState(state, nextProfile, nextAnalytics, options = {}) {
+  const userProfile = sanitizeProfile(nextProfile);
+  const analytics = createAnalyticsState(userProfile, nextAnalytics);
+  const workout = createWorkoutState(userProfile, analytics, state.workout, {
+    easyMode: options.easyMode ?? state.workout.easyMode,
+    resetChat: options.resetChat,
+    chatModeEnabled: options.chatModeEnabled ?? state.workout.chatModeEnabled,
+    feedbackMessage: options.workoutFeedbackMessage || '',
+  });
+  const diet = createDietState(userProfile, workout.plan, {
+    ...state.diet,
+    feedbackMessage: '',
+  });
 
-  if (total <= 0) {
-    return [
-      { label: 'Protein', value: 34, color: 'bg-brand-400' },
-      { label: 'Carbs', value: 38, color: 'bg-mint-400' },
-      { label: 'Fats', value: 28, color: 'bg-sky-400' },
-    ];
+  return {
+    ...state,
+    userProfile: {
+      ...userProfile,
+      savedAt: options.savedAt ?? userProfile.savedAt,
+    },
+    analytics,
+    workout,
+    diet,
+  };
+}
+
+function createPersistedState(state) {
+  return {
+    auth: {
+      isLoggedIn: state.auth.isLoggedIn,
+      phoneNumber: state.auth.phoneNumber,
+      otpVerifiedAt: state.auth.otpVerifiedAt,
+    },
+    userProfile: state.userProfile,
+    analytics: state.analytics,
+    diet: state.diet,
+  };
+}
+
+function loadStoredState() {
+  if (typeof window === 'undefined') {
+    return null;
   }
 
-  const proteinValue = Math.round((protein / total) * 100);
-  const carbsValue = Math.round((carbs / total) * 100);
-  const fatsValue = Math.max(0, 100 - proteinValue - carbsValue);
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
 
-  return [
-    { label: 'Protein', value: proteinValue, color: 'bg-brand-400' },
-    { label: 'Carbs', value: carbsValue, color: 'bg-mint-400' },
-    { label: 'Fats', value: fatsValue, color: 'bg-sky-400' },
-  ];
+    if (!raw) {
+      return null;
+    }
+
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+}
+
+function createInitialState() {
+  const storedState = loadStoredState();
+  const userProfile = sanitizeProfile({
+    ...createDefaultProfile(),
+    ...(storedState?.userProfile || {}),
+    phoneNumber:
+      storedState?.userProfile?.phoneNumber || storedState?.auth?.phoneNumber || '',
+  });
+  const analytics = createAnalyticsState(userProfile, storedState?.analytics);
+  const workout = createWorkoutState(userProfile, analytics, {}, { resetChat: true });
+  const diet = createDietState(userProfile, workout.plan, storedState?.diet);
+  const auth = createAuthState(userProfile, storedState?.auth);
+
+  return {
+    auth,
+    userProfile,
+    workout,
+    diet,
+    analytics,
+  };
 }
 
 function appStateReducer(state, action) {
@@ -260,11 +334,58 @@ function appStateReducer(state, action) {
       };
 
     case 'SAVE_PROFILE':
+      return rebuildDerivedState(
+        state,
+        {
+          ...state.userProfile,
+          phoneNumber: state.userProfile.phoneNumber || state.auth.phoneNumber,
+          savedAt: action.payload.savedAt,
+        },
+        state.analytics,
+        {
+          resetChat: true,
+          savedAt: action.payload.savedAt,
+        },
+      );
+
+    case 'REQUEST_LOGIN_OTP':
       return {
         ...state,
+        auth: {
+          ...state.auth,
+          isLoggedIn: false,
+          phoneNumber: action.payload.phoneNumber,
+          otpCode: action.payload.otpCode,
+          otpRequestedAt: action.payload.requestedAt,
+        },
+      };
+
+    case 'LOGIN_SUCCESS':
+      return {
+        ...state,
+        auth: {
+          ...state.auth,
+          isLoggedIn: true,
+          phoneNumber: action.payload.phoneNumber,
+          otpCode: '',
+          otpVerifiedAt: action.payload.verifiedAt,
+        },
         userProfile: {
           ...state.userProfile,
-          savedAt: action.payload.savedAt,
+          phoneNumber: action.payload.phoneNumber,
+        },
+      };
+
+    case 'LOGOUT':
+      return {
+        ...state,
+        auth: createAuthState(state.userProfile, {}),
+        workout: {
+          ...createWorkoutState(state.userProfile, state.analytics, state.workout, {
+            resetChat: true,
+            chatModeEnabled: false,
+          }),
+          chatModeEnabled: false,
         },
       };
 
@@ -281,7 +402,8 @@ function appStateReducer(state, action) {
           sessionStartedAt: Date.now(),
           sessionSummary: null,
           restSecondsRemaining: 0,
-          chatPending: false,
+          muscleFocusKey: state.workout.queue[0]?.key || state.workout.plan.defaultMuscleFocusKey,
+          feedbackMessage: '',
         },
       };
 
@@ -306,21 +428,23 @@ function appStateReducer(state, action) {
         workout: {
           ...state.workout,
           restSecondsRemaining: currentExercise.restSeconds,
+          feedbackMessage: `Rest reset to ${currentExercise.restSeconds} sec.`,
         },
       };
     }
 
     case 'COMPLETE_WORKOUT_SET': {
-      if (!state.workout.sessionActive) {
+      if (!state.workout.sessionActive || state.workout.sessionComplete) {
         return state;
       }
 
       const currentExercise = state.workout.queue[state.workout.currentExerciseIndex];
-      const completedSets = state.workout.totalSetsCompleted + 1;
 
       if (!currentExercise) {
         return state;
       }
+
+      const totalSetsCompleted = state.workout.totalSetsCompleted + 1;
 
       if (state.workout.currentSet < currentExercise.sets) {
         return {
@@ -328,21 +452,26 @@ function appStateReducer(state, action) {
           workout: {
             ...state.workout,
             currentSet: state.workout.currentSet + 1,
-            totalSetsCompleted: completedSets,
+            totalSetsCompleted,
             restSecondsRemaining: currentExercise.restSeconds,
+            feedbackMessage: `Set ${state.workout.currentSet} closed. Recover, then attack set ${state.workout.currentSet + 1}.`,
           },
         };
       }
 
       if (state.workout.currentExerciseIndex < state.workout.queue.length - 1) {
+        const nextExercise = state.workout.queue[state.workout.currentExerciseIndex + 1];
+
         return {
           ...state,
           workout: {
             ...state.workout,
             currentExerciseIndex: state.workout.currentExerciseIndex + 1,
             currentSet: 1,
-            totalSetsCompleted: completedSets,
+            totalSetsCompleted,
             restSecondsRemaining: currentExercise.restSeconds,
+            muscleFocusKey: nextExercise?.key || state.workout.muscleFocusKey,
+            feedbackMessage: `${currentExercise.name} is done. Next up: ${nextExercise?.name || 'the next movement'}.`,
           },
         };
       }
@@ -353,11 +482,11 @@ function appStateReducer(state, action) {
           ...state.workout,
           sessionActive: false,
           sessionComplete: true,
-          currentExerciseIndex: state.workout.currentExerciseIndex,
           currentSet: currentExercise.sets,
-          totalSetsCompleted: completedSets,
-          sessionSummary: buildWorkoutSummary(state, completedSets),
+          totalSetsCompleted,
+          sessionSummary: buildWorkoutSummary(state, totalSetsCompleted),
           restSecondsRemaining: 0,
+          feedbackMessage: 'Session complete. Summary is ready.',
         },
       };
     }
@@ -389,43 +518,85 @@ function appStateReducer(state, action) {
         },
       };
 
-    case 'ROTATE_WORKOUT_QUEUE': {
-      const current = state.workout.queue[state.workout.currentExerciseIndex];
-      const previous = state.workout.queue.slice(0, state.workout.currentExerciseIndex);
-      const upcoming = state.workout.queue.slice(state.workout.currentExerciseIndex + 1);
+    case 'SELECT_WORKOUT_EXERCISE':
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          muscleFocusKey: action.payload.exerciseKey,
+        },
+      };
 
-      if (upcoming.length < 2) {
+    case 'REPLACE_WORKOUT_EXERCISE': {
+      const sourceIndex =
+        typeof action.payload.sourceIndex === 'number'
+          ? action.payload.sourceIndex
+          : state.workout.queue.findIndex((item) => item.key === action.payload.sourceKey);
+
+      if (sourceIndex < 0) {
         return state;
       }
+
+      const sourceExercise = state.workout.queue[sourceIndex];
+      const replacementExercise = createReplacementExercise(
+        action.payload.replacementKey,
+        state.userProfile,
+        state.analytics.recovery,
+        sourceExercise,
+      );
+
+      const nextQueue = state.workout.queue.map((item, index) =>
+        index === sourceIndex ? replacementExercise : item,
+      );
+      const nextPlan = {
+        ...state.workout.plan,
+        exercises: nextQueue,
+        defaultMuscleFocusKey:
+          state.workout.plan.defaultMuscleFocusKey === sourceExercise.key
+            ? replacementExercise.key
+            : state.workout.plan.defaultMuscleFocusKey,
+      };
 
       return {
         ...state,
         workout: {
           ...state.workout,
-          queue: [...previous, current, ...rotateArray(upcoming)],
+          queue: nextQueue,
+          plan: nextPlan,
+          muscleFocusKey: replacementExercise.key,
+          feedbackMessage: `${sourceExercise.name} swapped for ${replacementExercise.name}.`,
         },
       };
     }
 
+    case 'TOGGLE_WORKOUT_EASY_MODE': {
+      const nextEasyMode = !state.workout.easyMode;
+
+      return rebuildDerivedState(state, state.userProfile, state.analytics, {
+        resetChat: false,
+        easyMode: nextEasyMode,
+        workoutFeedbackMessage: nextEasyMode
+          ? 'Plan softened for a lower-fatigue day.'
+          : 'Full training intensity is back.',
+      });
+    }
+
     case 'LOG_DINNER_PLAN': {
-      const { carbGain, fatGain, proteinGain, spend } = action.payload;
+      const { carbGain, fatGain, proteinGain, spend, mealTitle } = action.payload;
       const nextProtein = state.diet.proteinConsumed + proteinGain;
       const nextCarbs = state.diet.carbsConsumed + carbGain;
       const nextFats = state.diet.fatsConsumed + fatGain;
       const nextBudget = Math.max(0, state.diet.remainingBudget - spend);
       const nextAdherence = Math.min(100, state.diet.adherence + 2);
-      const dinnerTitle = state.diet.dinnerLogCount === 0 ? 'Dinner logged' : 'Dinner refined';
-      const dinnerDetail =
-        `${proteinGain}g protein, ${carbGain}g carbs, and ${fatGain}g fats were added without breaking the evening budget.`;
 
       return {
         ...state,
         diet: {
           ...state.diet,
-          remainingBudget: nextBudget,
           proteinConsumed: nextProtein,
           carbsConsumed: nextCarbs,
           fatsConsumed: nextFats,
+          remainingBudget: Number(nextBudget.toFixed(2)),
           adherence: nextAdherence,
           dinnerLogCount: state.diet.dinnerLogCount + 1,
           dinnerLogged: true,
@@ -434,10 +605,10 @@ function appStateReducer(state, action) {
             carbGain,
             fatGain,
             spend,
-            message: dinnerDetail,
+            mealTitle,
+            message: `${mealTitle} added ${proteinGain}g protein without pushing the budget off track.`,
           },
-          macroSplit: buildMacroSplit(nextProtein, nextCarbs, nextFats),
-          mealTimeline: updateMealTimeline(state.diet, dinnerTitle, dinnerDetail, spend),
+          feedbackMessage: `${mealTitle} logged. Protein and budget stayed on plan.`,
         },
       };
     }
@@ -447,7 +618,7 @@ function appStateReducer(state, action) {
         ...state,
         diet: {
           ...state.diet,
-          smartSwaps: rotateArray(state.diet.smartSwaps),
+          swapRotation: state.diet.swapRotation + 1,
         },
       };
 
@@ -460,14 +631,24 @@ function appStateReducer(state, action) {
         },
       };
 
-    case 'SET_ANALYTICS_SNAPSHOT':
-      return {
-        ...state,
-        analytics: {
-          ...state.analytics,
-          ...action.payload,
-        },
-      };
+    case 'SET_ANALYTICS_SNAPSHOT': {
+      const nextAnalytics = createAnalyticsState(state.userProfile, {
+        ...state.analytics,
+        ...action.payload,
+      });
+
+      if (state.workout.sessionActive || state.workout.sessionComplete) {
+        return {
+          ...state,
+          analytics: nextAnalytics,
+        };
+      }
+
+      return rebuildDerivedState(state, state.userProfile, nextAnalytics, {
+        resetChat: false,
+        easyMode: state.workout.easyMode,
+      });
+    }
 
     case 'CAPTURE_ANALYTICS_CHECKIN':
       return {
@@ -488,7 +669,15 @@ function appStateReducer(state, action) {
 const AppStateContext = createContext(null);
 
 export function AppStateProvider({ children }) {
-  const [state, dispatch] = useReducer(appStateReducer, initialState);
+  const [state, dispatch] = useReducer(appStateReducer, undefined, createInitialState);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(createPersistedState(state)));
+  }, [state]);
 
   useEffect(() => {
     if (!state.workout.sessionActive || state.workout.restSecondsRemaining <= 0) {

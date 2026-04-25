@@ -13,24 +13,32 @@ import { useAppState } from '@/hooks/useAppState';
 import { routeTransition } from '@/utils/motion';
 
 function resolveGoalLabel(goal) {
+  if (goal === 'muscle_gain') {
+    return 'Muscle gain';
+  }
+
+  if (goal === 'fat_loss') {
+    return 'Fat loss';
+  }
+
   if (goal === 'strength') {
-    return 'Strength focus';
+    return 'Strength';
   }
 
-  if (goal === 'discipline') {
-    return 'Discipline focus';
-  }
-
-  return 'Recomp focus';
+  return 'Recomposition';
 }
 
 function resolveToneLabel(tone) {
-  if (tone === 'assertive') {
-    return 'Assertive coach';
+  if (tone === 'strict') {
+    return 'Strict coach';
   }
 
-  if (tone === 'companion') {
-    return 'Supportive coach';
+  if (tone === 'motivational') {
+    return 'Motivational coach';
+  }
+
+  if (tone === 'friendly') {
+    return 'Friendly coach';
   }
 
   return 'Calm coach';
@@ -82,7 +90,7 @@ export default function AppLayout() {
                 <div className="flex flex-wrap items-center gap-4 md:gap-5">
                   <Badge icon="pulse">{analytics.recovery}% recovery</Badge>
                   <Badge icon="spark" tone="neutral">
-                    {resolveGoalLabel(userProfile.goal)} | {resolveToneLabel(userProfile.tone)}
+                    {userProfile.name} | {resolveGoalLabel(userProfile.goal)} | {resolveToneLabel(userProfile.tone)}
                   </Badge>
                   <Button to="/onboarding" variant="secondary">
                     {userProfile.savedAt ? 'Refine setup' : 'Finish setup'}
@@ -126,7 +134,7 @@ export default function AppLayout() {
             <div className="panel-muted flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <p>{BRAND_NAME}</p>
               <p>
-                Built for {userProfile.cadence} cadence, {userProfile.budget} nutrition, and {analytics.projectedWeeks}-week progress intelligence.
+                Built for {userProfile.workoutDaysPerWeek} training days, {userProfile.dailyBudget} daily budget, and {analytics.projectedWeeks}-week progress intelligence.
               </p>
             </div>
           </footer>

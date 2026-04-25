@@ -16,30 +16,40 @@ import { fadeUp, staggerContainer } from '@/utils/motion';
 function getGoalCopy(goal) {
   if (goal === 'strength') {
     return {
-      desktopHeadline: 'Tonight is shaped for strength-first training with clean recovery support after.',
-      mobileHeadline: 'Heavy session. Clean recovery. Tight focus.',
+      desktopHeadline: 'Strength is the priority today, with recovery and nutrition keeping the output clean.',
+      mobileHeadline: 'Train strong. Recover smart.',
       desktopBody:
-        'Workout Intelligence Engine is protecting output first, while the diet layer keeps the close-out meal efficient.',
-      mobileBody: 'Strength comes first tonight, with nutrition staying tight after the lift.',
+        'GYMOS AI is biasing your session toward stronger main lifts, while the diet layer keeps the close-out meal practical and repeatable.',
+      mobileBody: 'Your trainer is keeping today strong, focused, and easy to recover from.',
     };
   }
 
-  if (goal === 'discipline') {
+  if (goal === 'muscle_gain') {
     return {
-      desktopHeadline: 'Tonight is shaped for consistent execution with low-friction pacing and calm reminders.',
-      mobileHeadline: 'Stay consistent. Stay calm. Keep momentum.',
+      desktopHeadline: 'Today is built for quality volume, muscular tension, and low-noise progression.',
+      mobileHeadline: 'Build size. Keep form tight.',
       desktopBody:
-        'The system is lowering noise, protecting routine, and keeping the next best action obvious from the first glance.',
-      mobileBody: 'The shell is optimized for routine, adherence, and a clean finish tonight.',
+        'The trainer is protecting hypertrophy quality first, then using meals, reminders, and recovery to keep growth consistent.',
+      mobileBody: 'Quality volume is the target, with nutrition staying simple after the gym.',
+    };
+  }
+
+  if (goal === 'fat_loss') {
+    return {
+      desktopHeadline: 'Today is shaped for clean output, controlled fatigue, and a budget-safe nutrition finish.',
+      mobileHeadline: 'Stay sharp. Keep the deficit clean.',
+      desktopBody:
+        'The app is balancing recovery, intensity, and affordable meals so fat loss does not turn into chaos.',
+      mobileBody: 'Your plan keeps training efficient and food practical for fat loss.',
     };
   }
 
   return {
-    desktopHeadline: 'Tonight is shaped for strength-first training with budget-aware recovery after.',
-    mobileHeadline: 'Heavy session. Clean recovery. Tight focus.',
+    desktopHeadline: 'Today is shaped for steady recomposition with a personal trainer feel all the way through.',
+    mobileHeadline: 'Train clean. Recomp steady.',
     desktopBody:
-      'Workout Intelligence Engine wants a controlled heavy session, while the Diet Engine still keeps dinner inside budget and macro guardrails.',
-    mobileBody: 'Workout Intelligence Engine wants a controlled heavy session with a clean dinner close.',
+      'Workout, diet, reminders, and chat are all speaking from the same profile now, so the app feels more like one real coach.',
+    mobileBody: 'Everything is aligned around clean training and realistic nutrition today.',
   };
 }
 
@@ -57,22 +67,22 @@ export default function DashboardPage() {
       value: `${analytics.recovery}%`,
       detail:
         analytics.recovery >= 86
-          ? 'Sleep, soreness, and fatigue are aligned for a heavy-first session.'
-          : 'Recovery remains stable, so intensity can stay controlled without forcing volume.',
+          ? 'Readiness is high enough for a confident session with quality output.'
+          : 'Recovery is stable, so the trainer is protecting quality over ego.',
       icon: 'pulse',
     },
     {
       label: 'Discipline streak',
       value: `${analytics.streak} days`,
-      detail: `Consistency is compounding. The discipline engine trusts your ${userProfile.cadence} cadence.`,
+      detail: `${userProfile.trainerName} is trusting your ${userProfile.workoutDaysPerWeek}-day rhythm right now.`,
       icon: 'streak',
     },
     {
-      label: 'Adaptive load',
-      value: `+${analytics.strengthSlope.toFixed(1)}%`,
+      label: 'Today\'s focus',
+      value: workout.plan.dayLabel,
       detail: workout.sessionActive
-        ? `Live session is centered on ${currentExercise.name.toLowerCase()}.`
-        : 'Workout Intelligence Engine wants a measured progression tonight.',
+        ? `Session is live on ${currentExercise.name}.`
+        : workout.plan.todayFocus,
       icon: 'chart',
     },
   ];
@@ -82,103 +92,89 @@ export default function DashboardPage() {
       id: 'F2',
       title: 'Workout Intelligence Engine',
       summary: workout.sessionActive
-        ? `Current session is live on ${currentExercise.name} with clear set pacing.`
-        : `${currentExercise.name} is positioned as the anchor movement for tonight's session.`,
+        ? `${currentExercise.name} is live with ${currentExercise.sets} x ${currentExercise.repsLabel} and ${currentExercise.restSeconds} sec rest.`
+        : `${workout.plan.dayLabel} is ready with ${workout.plan.todayFocus.toLowerCase()}.`,
       icon: 'dumbbell',
+    },
+    {
+      id: 'F5',
+      title: 'Workout Chat Mode',
+      summary: `${userProfile.trainerName} replies in ${userProfile.language} using your ${userProfile.tone} tone and ${userProfile.goal.replace('_', ' ')} goal.`,
+      icon: 'chat',
     },
     {
       id: 'F6',
       title: 'Recovery & Fatigue Tracker',
       summary:
         analytics.recovery >= 86
-          ? 'Readiness is high enough for a strength-biased session with controlled volume.'
-          : 'Recovery is steady, so the system is favoring quality over fatigue spikes.',
+          ? 'Readiness is high, so the trainer is not trimming the main lifts.'
+          : 'Recovery is softer today, so pacing and exercise selection stay more protective.',
       icon: 'pulse',
-    },
-    {
-      id: 'F8',
-      title: 'Streak & Discipline Engine',
-      summary: `Your ${analytics.streak}-day run is strongest when workouts stay inside the ${userProfile.cadence} rhythm.`,
-      icon: 'streak',
     },
     {
       id: 'F11',
       title: 'Smart AI Reminder',
-      summary:
-        userProfile.reminders === 'minimal'
-          ? 'Reminder load is intentionally quiet until routine risk rises.'
-          : userProfile.reminders === 'high'
-            ? 'High-accountability reminders are armed for hydration, training, and sleep cutoff.'
-            : 'Context-aware reminders are tuned to training, food timing, and sleep consistency.',
+      summary: `Reminder mode ${userProfile.reminders} is synced to ${userProfile.workoutDaysPerWeek} training days and a ${userProfile.dailyBudget} daily budget.`,
       icon: 'bell',
     },
   ];
 
   const cadenceTimeline = [
     {
-      time: '06:30',
-      title: 'Hydration cue',
-      detail:
-        userProfile.reminders === 'minimal'
-          ? 'A single quiet hydration nudge keeps the routine alive without extra noise.'
-          : 'Smart reminder nudges water and a short mobility opener before the evening lift.',
+      time: '07:00',
+      title: 'Trainer greeting',
+      detail: workout.plan.trainerGreeting,
     },
     {
-      time: '07:15',
-      title: 'Strength block',
+      time: workout.plan.isWorkoutDay ? '18:30' : '19:00',
+      title: workout.plan.dayLabel,
       detail: workout.sessionActive
-        ? `${currentExercise.name} is live in gym mode with clear rest pacing and low-noise cues.`
-        : `${currentExercise.name} is queued as the lead block when the workout session begins.`,
+        ? `${currentExercise.name} is already active in gym mode.`
+        : workout.plan.whyThisWorkout,
     },
     {
-      time: '09:00',
-      title: diet.dinnerLogged ? 'Dinner logged' : 'Budget plate',
+      time: workout.plan.isWorkoutDay ? '20:15' : '20:30',
+      title: diet.dinnerLogged ? 'Dinner logged' : 'Tonight\'s meal',
       detail: diet.dinnerLogged
-        ? `Dinner is already in the plan with $${diet.remainingBudget.toFixed(2)} left in budget.`
-        : 'Diet engine suggests a protein-heavy dinner that stays inside the daily budget cap.',
+        ? `${diet.lastDinnerLog?.mealTitle || 'Dinner'} is logged with $${diet.remainingBudget.toFixed(2)} left.`
+        : `${userProfile.foodPreference} dinner guidance will stay inside your ${userProfile.dailyBudget} budget.`,
     },
     {
       time: '22:30',
       title: 'Recovery cutoff',
       detail:
-        userProfile.tone === 'assertive'
-          ? 'Coach tone stays direct on caffeine cutoff and sleep timing.'
-          : 'Wind-down guidance stays calm so recovery remains easy to follow.',
+        userProfile.tone === 'strict'
+          ? `${userProfile.trainerName} will be direct about caffeine, sleep, and recovery cutoffs.`
+          : `${userProfile.trainerName} will keep recovery prompts calm, clear, and useful.`,
     },
   ];
 
   const aiSignals = [
     {
-      title: workout.sessionActive ? 'Session is already live' : 'Strength is the priority',
-      detail: workout.sessionActive
-        ? `${currentExercise.name} is active, and the queue is pacing the next decisions cleanly.`
-        : 'Current readiness favors heavier compound lifts over volume chasing.',
+      title: 'Personal trainer greeting is live',
+      detail: `${workout.plan.trainerGreeting} The app is speaking from your saved profile now.`,
+      icon: 'spark',
+    },
+    {
+      title: workout.plan.isWorkoutDay ? 'Why this workout makes sense' : 'Why today is lighter',
+      detail: workout.plan.whyThisWorkout,
       icon: 'dumbbell',
     },
     {
-      title: diet.dinnerLogged ? 'Dinner plan is locked in' : 'Budget plate looks clean',
+      title: 'Diet is linked to the same profile',
       detail: diet.dinnerLogged
-        ? `Protein intake is trending toward the target with $${diet.remainingBudget.toFixed(2)} still available.`
-        : "Today's macro target can still be hit with one controlled dinner.",
+        ? `${diet.lastDinnerLog?.mealTitle || 'Dinner'} moved protein up without pushing budget negative.`
+        : `${userProfile.foodPreference} meals are aligned to your ${userProfile.goal.replace('_', ' ')} target and ${userProfile.dailyBudget} daily spend.`,
       icon: 'leaf',
-    },
-    {
-      title: 'Prediction remains on track',
-      detail: `Progress Prediction still projects visible movement across the next ${analytics.projectedWeeks} weeks.`,
-      icon: 'chart',
     },
   ];
 
   const coachOverview = [
+    `${userProfile.trainerName} is coaching ${userProfile.name} in ${userProfile.language} with a ${userProfile.tone} tone.`,
+    `${workout.plan.dayLabel} is built around ${userProfile.preferredSplit.replaceAll('-', ' ')}, ${userProfile.experienceLevel} experience, and ${userProfile.injuries || 'no major limitations saved.'}`,
     analytics.recovery >= 86
-      ? 'Streak risk is low and recovery supports a confident evening session.'
-      : 'Streak risk is still controlled, but fatigue management stays slightly more conservative tonight.',
-    workout.sessionActive
-      ? `${currentExercise.name} is active now, so the system is holding the interface quiet and focused.`
-      : `${currentExercise.name} is still queued as the next high-value training decision.`,
-    diet.dinnerLogged
-      ? 'Dinner has already been logged, so reminder pressure can stay low for the rest of the night.'
-      : 'Smart AI Reminder is preserving one clean nutrition nudge before the dinner window closes.',
+      ? 'Recovery is green enough that the plan can stay direct and productive.'
+      : 'Recovery is softer, so the plan stays honest and avoids junk fatigue.',
   ];
 
   const mobileHighlights = dashboardStats.slice(0, 2);
@@ -192,18 +188,18 @@ export default function DashboardPage() {
     >
       <PageHeader
         eyebrow="Landing / Dashboard"
-        title="A calm command center for training, fueling, and staying disciplined."
-        mobileTitle="Train sharp tonight."
-        description="The GYMOS AI dashboard surfaces only the signals that matter right now: readiness, workout intent, nutrition pressure, and the next best action."
+        title="A calm command center for training, food, recovery, and personal coaching."
+        mobileTitle="Train sharp with your coach."
+        description="The GYMOS AI dashboard now surfaces trainer-aware signals first: greeting, focus, workout logic, diet pressure, and the next clear move."
         hideDescriptionOnMobile
-        meta={['11 locked AI systems', 'Premium dark shell', 'Mobile and desktop ready']}
+        meta={['Profile-driven trainer', 'Premium mobile shell', 'Personalized daily focus']}
         actions={
           <>
             <Button to="/workout" icon>
               Start workout
             </Button>
-            <Button to="/analytics" variant="secondary">
-              View progress
+            <Button to="/profile" variant="secondary">
+              Open profile
             </Button>
           </>
         }
@@ -213,10 +209,10 @@ export default function DashboardPage() {
         <Panel className="px-4 py-4 sm:px-7 sm:py-7">
           <div className="hidden flex-wrap items-center gap-3 sm:flex">
             <span className="rounded-full border border-brand-400/18 bg-brand-400/10 px-3 py-1.5 text-xs font-semibold tracking-[0.22em] text-brand-300 uppercase">
-              Adaptive coaching live
+              {workout.plan.trainerGreeting}
             </span>
             <span className="rounded-full border border-mint-400/18 bg-mint-400/10 px-3 py-1.5 text-xs font-semibold tracking-[0.22em] text-mint-400 uppercase">
-              Recovery {analytics.recovery}% synced
+              Today&apos;s focus: {workout.plan.dayLabel}
             </span>
           </div>
 
@@ -270,11 +266,10 @@ export default function DashboardPage() {
             Coach overview
           </p>
           <h3 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white">
-            The system sees momentum.
+            Personal coaching is active.
           </h3>
           <p className="mt-3 text-sm leading-7 text-slate-400">
-            Your routine is stable enough that the premium shell can stay quiet and intentional,
-            instead of shouting for attention.
+            The app is using your stored profile instead of generic placeholders, so today feels more like a trainer relationship than a demo shell.
           </p>
 
           <div className="mt-6 space-y-3">
@@ -298,15 +293,15 @@ export default function DashboardPage() {
 
       <motion.section className="grid gap-4 sm:gap-6 xl:grid-cols-[1.1fr_0.9fr]" variants={fadeUp}>
         <StatePanel
-          title="Priority modules"
-          description="Feature modules stay visible only when they can change today's plan."
+          title="Today’s focus"
+          description="Trainer modules only stay visible when they help you make a better decision today."
         >
           <FocusModules modules={focusModules} />
         </StatePanel>
 
         <StatePanel
-          title="Daily cadence"
-          description="A premium schedule should feel guided, not noisy."
+          title="Why this workout?"
+          description="The daily flow stays personal from greeting to dinner."
         >
           <CadenceTimeline items={cadenceTimeline} />
         </StatePanel>
@@ -315,7 +310,7 @@ export default function DashboardPage() {
       <motion.section variants={fadeUp}>
         <StatePanel
           title="AI signals"
-          description="Short, high-signal insights across workout, recovery, diet, and prediction."
+          description="Short, high-signal updates across training, chat, food, and prediction."
         >
           <SignalStrip signals={aiSignals} />
         </StatePanel>

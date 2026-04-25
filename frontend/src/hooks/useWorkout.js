@@ -1,3 +1,9 @@
+import {
+  buildDietPlan,
+  buildTrainerReply,
+  getMuscleFocus,
+  getReplacementOptions,
+} from '@/services/trainerEngine';
 import { useAppState } from '@/hooks/useAppState';
 
 function formatTimer(totalSeconds) {
@@ -9,11 +15,11 @@ function formatTimer(totalSeconds) {
 }
 
 function resolveRecoveryStatus(recovery) {
-  if (recovery >= 86) {
+  if (recovery >= 88) {
     return 'Ready';
   }
 
-  if (recovery >= 78) {
+  if (recovery >= 82) {
     return 'Stable';
   }
 
@@ -28,85 +34,48 @@ function createMessage(role, text) {
   };
 }
 
-function resolveCoachFallback(goal, tone) {
+function resolveBlockLabel(goal) {
   if (goal === 'strength') {
-    return tone === 'assertive'
-      ? 'Keep the bar speed honest. Strong reps only.'
-      : 'Keep the reps crisp and let bar speed decide how hard to push.';
+    return 'Strength block';
   }
 
-  if (goal === 'discipline') {
-    return tone === 'companion'
-      ? 'Stay with the routine. The clean finish matters more than forcing extra noise.'
-      : 'Stay repeatable. The win is showing up and finishing clean.';
+  if (goal === 'muscle_gain') {
+    return 'Hypertrophy block';
   }
 
-  return tone === 'assertive'
-    ? 'Stay tight, hit the planned work, and leave with something in reserve.'
-    : 'Keep the work smooth, focused, and easy to recover from tomorrow.';
+  if (goal === 'fat_loss') {
+    return 'Lean-output block';
+  }
+
+  return 'Recomp block';
 }
 
-function createCoachReply({
-  currentExercise,
-  nextQueuedExercise,
-  restSecondsRemaining,
-  sessionComplete,
-  text,
-  userProfile,
-}) {
-  const normalized = text.toLowerCase();
-
-  if (sessionComplete) {
-    return 'Session is complete. Walk it down, hydrate, and take the win. Restart only when you want another clean round.';
-  }
-
-  if (normalized.includes('rest') || normalized.includes('timer')) {
-    return restSecondsRemaining > 0
-      ? `Rest timer is sitting at ${formatTimer(restSecondsRemaining)}. Let the breathing settle, then attack the next set cleanly.`
-      : 'Rest window is clear. Start the next effort whenever your breathing feels steady again.';
-  }
-
-  if (normalized.includes('next') || normalized.includes('after')) {
-    return nextQueuedExercise
-      ? `After ${currentExercise.name}, you roll into ${nextQueuedExercise.name}. Keep the transition quiet and efficient.`
-      : 'This is the final movement. Finish sharp, then let the session close without extra fluff.';
-  }
-
-  if (normalized.includes('form') || normalized.includes('technique')) {
-    return currentExercise.notes;
-  }
-
-  if (normalized.includes('hard') || normalized.includes('intensity') || normalized.includes('weight')) {
-    return userProfile.goal === 'strength'
-      ? 'Push the working sets hard, but keep one clean rep in reserve. Output matters more than grinding.'
-      : 'Keep the effort challenging but repeatable. The system is rewarding quality more than chaos tonight.';
-  }
-
-  return resolveCoachFallback(userProfile.goal, userProfile.tone);
-}
-
-function buildSessionDescription({
-  currentExercise,
-  sessionActive,
-  sessionComplete,
-  sessionSummary,
-}) {
+function buildSessionDescription({ currentExercise, plan, sessionActive, sessionComplete, sessionSummary }) {
   if (sessionComplete && sessionSummary) {
-    return `The session is complete with ${sessionSummary.totalSetsCompleted} sets finished in ${sessionSummary.durationLabel}.`;
+    return `Session wrapped with ${sessionSummary.totalSetsCompleted} total sets in ${sessionSummary.durationLabel}. Keep the close-out clean, hydrate, and take the win.`;
   }
 
   if (sessionActive) {
-    return `Current movement: ${currentExercise.name}. Rest pacing stays visible and the next decision remains obvious.`;
+    return `${plan.whyThisWorkout} Live now on ${currentExercise.name} with clear set pacing and low-noise coaching.`;
   }
 
-  return 'Start the session to activate live set tracking, rest pacing, and the in-gym coaching layer.';
+  return `${plan.trainerGreeting} ${plan.whyThisWorkout}`;
 }
 
 export function useWorkout() {
   const { state, dispatch } = useAppState();
-  const { workout, analytics, userProfile } = state;
+  const { analytics, diet, userProfile, workout } = state;
   const currentExercise = workout.queue[workout.currentExerciseIndex] || workout.queue[0];
-  const nextQueuedExercise = workout.queue[workout.currentExerciseIndex + 1];
+  const nextQueuedExercise = workout.queue[workout.currentExerciseIndex + 1] || null;
+  const selectedExercise =
+    workout.queue.find((item) => item.key === workout.muscleFocusKey) || currentExercise;
+  const muscleFocus = getMuscleFocus(selectedExercise?.key || currentExercise?.key);
+  const replacementOptions = getReplacementOptions(
+    selectedExercise?.key || currentExercise?.key,
+    userProfile,
+    analytics.recovery,
+  );
+  const dietPlan = buildDietPlan(userProfile, workout.plan.isWorkoutDay);
   const sessionStateLabel = workout.sessionComplete
     ? 'Session complete'
     : workout.sessionActive
@@ -117,24 +86,19 @@ export function useWorkout() {
     : `Set ${workout.currentSet} of ${currentExercise.sets}`;
 
   const session = {
-    title: workout.programTitle,
-    phase: setProgressLabel,
+    title: workout.plan.title,
+    phase: workout.plan.dayLabel,
     recovery: resolveRecoveryStatus(analytics.recovery),
-    nextExercise: workout.sessionComplete ? 'All movements complete' : currentExercise.name,
+    nextExercise: workout.sessionComplete ? 'All movements complete' : nextQueuedExercise?.name || 'Final movement',
     currentExerciseName: currentExercise.name,
     restTimer: formatTimer(workout.restSecondsRemaining),
     notes: workout.sessionComplete
-      ? workout.sessionSummary?.message ||
-        'You closed the full block cleanly. Restart when you want another focused round.'
-      : currentExercise.notes,
-    blockLabel:
-      userProfile.goal === 'strength'
-        ? 'Heavy neural'
-        : userProfile.goal === 'discipline'
-          ? 'Consistency block'
-          : 'Hybrid progression',
+      ? workout.sessionSummary?.message || 'Session is closed cleanly.'
+      : currentExercise.trainerNote,
+    blockLabel: resolveBlockLabel(userProfile.goal),
     description: buildSessionDescription({
       currentExercise,
+      plan: workout.plan,
       sessionActive: workout.sessionActive,
       sessionComplete: workout.sessionComplete,
       sessionSummary: workout.sessionSummary,
@@ -143,99 +107,72 @@ export function useWorkout() {
     setProgressLabel,
     summary: workout.sessionSummary,
     restSecondsRemaining: workout.restSecondsRemaining,
+    todayFocus: workout.plan.todayFocus,
+    whyThisWorkout: workout.plan.whyThisWorkout,
+    trainerGreeting: workout.plan.trainerGreeting,
+    feedbackMessage: workout.feedbackMessage,
+    easyMode: workout.easyMode,
   };
 
   const workoutStats = [
     {
-      label: 'Session intent',
-      value:
-        userProfile.goal === 'strength'
-          ? 'Upper strength'
-          : userProfile.goal === 'discipline'
-            ? 'Discipline circuit'
-            : 'Lean recomposition',
-      detail:
-        userProfile.goal === 'strength'
-          ? 'Lower-rep pushing and pulling with disciplined rest windows.'
-          : userProfile.goal === 'discipline'
-            ? 'Reliable movement quality with low-friction session pacing.'
-            : 'Balanced strength and hypertrophy work with controlled fatigue.',
+      label: 'Today\'s focus',
+      value: workout.plan.dayLabel,
+      detail: workout.plan.todayFocus,
       icon: 'dumbbell',
     },
     {
       label: 'Current movement',
       value: workout.sessionComplete ? 'Session closed' : currentExercise.name,
       detail: workout.sessionComplete
-        ? 'The final movement is complete and the session summary is now locked in.'
-        : `${setProgressLabel} with ${currentExercise.reps}${currentExercise.unit ? ` ${currentExercise.unit}` : ' reps'} planned.`,
+        ? workout.sessionSummary?.message || 'The work is complete and logged.'
+        : `${currentExercise.sets} sets x ${currentExercise.repsLabel} | ${currentExercise.restSeconds} sec rest`,
       icon: 'target',
     },
     {
-      label: 'AI cue density',
-      value: workout.chatModeEnabled ? 'Active' : 'Light',
+      label: 'Ask trainer',
+      value: workout.chatModeEnabled ? `${userProfile.trainerName} live` : `${userProfile.trainerName} ready`,
       detail: workout.chatModeEnabled
-        ? 'Workout Chat Mode is open with live coach replies and pacing guidance.'
-        : 'Coaching only interrupts if fatigue or form drift spikes.',
+        ? `Chat is reading your ${userProfile.goal.replace('_', ' ')} profile and ${userProfile.language} preference.`
+        : 'Open chat for coach-style swaps, pain-aware adjustments, and meal guidance.',
       icon: 'chat',
     },
   ];
 
   const exerciseItems = workout.queue.map((item, index) => {
-    const detail = `${item.sets} sets x ${item.reps}${item.unit ? ` ${item.unit}` : ' reps'}`;
-
-    if (workout.sessionComplete) {
-      return {
-        ...item,
-        detail,
-        readiness: index <= workout.currentExerciseIndex ? 'Done' : 'Queued',
-      };
-    }
-
-    if (index < workout.currentExerciseIndex) {
-      return {
-        ...item,
-        detail,
-        readiness: 'Done',
-      };
-    }
-
-    if (index === workout.currentExerciseIndex) {
-      return {
-        ...item,
-        detail: `${detail} | ${setProgressLabel.toLowerCase()}`,
-        readiness: workout.sessionActive ? 'Live' : 'Prime',
-      };
-    }
-
-    if (index === workout.currentExerciseIndex + 1) {
-      return {
-        ...item,
-        detail,
-        readiness: 'Next',
-      };
-    }
+    const detail = `${item.sets} sets x ${item.repsLabel} | ${item.restSeconds} sec rest`;
+    const readiness =
+      workout.sessionComplete || index < workout.currentExerciseIndex
+        ? 'Done'
+        : index === workout.currentExerciseIndex
+          ? workout.sessionActive
+            ? 'Live'
+            : 'Prime'
+          : index === workout.currentExerciseIndex + 1
+            ? 'Next'
+            : 'Queued';
 
     return {
       ...item,
       detail,
-      readiness: item.readiness,
+      readiness,
+      isSelected: item.key === selectedExercise?.key,
+      targetMusclesLabel: item.targetMusclesLabel,
     };
   });
 
   const coachCues = workout.sessionComplete && workout.sessionSummary
     ? [
-        `Session Summary: ${workout.sessionSummary.totalSetsCompleted} total sets completed.`,
-        `Mock duration closed at ${workout.sessionSummary.durationLabel}.`,
+        `Premium close-out: ${workout.sessionSummary.totalSetsCompleted} sets finished in ${workout.sessionSummary.durationLabel}.`,
+        `Why it worked: ${workout.plan.whyThisWorkout}`,
         workout.sessionSummary.message,
       ]
     : [
-        `Current focus: ${currentExercise.name}.`,
+        `Today's focus: ${workout.plan.todayFocus}.`,
+        `Why this workout: ${workout.plan.whyThisWorkout}`,
         workout.restSecondsRemaining > 0
-          ? `Rest timer is active at ${formatTimer(workout.restSecondsRemaining)} before the next effort.`
-          : 'Rest timer is clear, so the next effort can start when you are ready.',
-        nextQueuedExercise
-          ? `Next exercise in queue: ${nextQueuedExercise.name}.`
-          : 'Final movement is in progress; the session wraps after this block.',
+          ? `Rest timer is live at ${formatTimer(workout.restSecondsRemaining)} before the next effort.`
+          : `${currentExercise.name} is ready. Stay sharp and keep one clean rep in reserve if fatigue climbs.`,
       ];
 
   return {
@@ -248,7 +185,13 @@ export function useWorkout() {
     isChatPending: workout.chatPending,
     isSessionActive: workout.sessionActive,
     isSessionComplete: workout.sessionComplete,
+    muscleFocus,
+    replacementOptions,
+    selectedExercise,
     session,
+    trainerName: userProfile.trainerName,
+    userName: userProfile.name,
+    workoutPlan: workout.plan,
     workoutStats,
     startSession() {
       dispatch({ type: 'START_WORKOUT_SESSION' });
@@ -259,11 +202,27 @@ export function useWorkout() {
     toggleChatMode() {
       dispatch({ type: 'TOGGLE_WORKOUT_CHAT' });
     },
-    reorderBlock() {
-      dispatch({ type: 'ROTATE_WORKOUT_QUEUE' });
-    },
     resetRestTimer() {
       dispatch({ type: 'RESET_WORKOUT_TIMER' });
+    },
+    selectExercise(exerciseKey) {
+      dispatch({
+        type: 'SELECT_WORKOUT_EXERCISE',
+        payload: { exerciseKey },
+      });
+    },
+    replaceExercise(sourceIndex, replacementKey) {
+      dispatch({
+        type: 'REPLACE_WORKOUT_EXERCISE',
+        payload: {
+          sourceIndex,
+          sourceKey: selectedExercise?.key,
+          replacementKey,
+        },
+      });
+    },
+    toggleIntensityMode() {
+      dispatch({ type: 'TOGGLE_WORKOUT_EASY_MODE' });
     },
     sendChatMessage(text) {
       const cleanText = text.trim();
@@ -284,30 +243,35 @@ export function useWorkout() {
       });
 
       const delay = 500 + Math.floor(Math.random() * 501);
+      const reply = buildTrainerReply({
+        message: cleanText,
+        profile: userProfile,
+        workout: {
+          ...workout,
+          queue: workout.queue,
+        },
+        analytics,
+        dietPlan,
+      });
 
       window.setTimeout(() => {
         dispatch({
           type: 'APPEND_WORKOUT_CHAT_MESSAGES',
           payload: {
-            messages: [
-              createMessage(
-                'assistant',
-                createCoachReply({
-                  currentExercise,
-                  nextQueuedExercise,
-                  restSecondsRemaining: workout.restSecondsRemaining,
-                  sessionComplete: workout.sessionComplete,
-                  text: cleanText,
-                  userProfile,
-                }),
-              ),
-            ],
+            messages: [createMessage('assistant', reply.text)],
           },
         });
         dispatch({
           type: 'SET_WORKOUT_CHAT_PENDING',
           payload: { value: false },
         });
+
+        if (reply.muscleFocusKey) {
+          dispatch({
+            type: 'SELECT_WORKOUT_EXERCISE',
+            payload: { exerciseKey: reply.muscleFocusKey },
+          });
+        }
       }, delay);
     },
   };

@@ -6,7 +6,9 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Panel } from '@/components/ui/Panel';
 import { StatePanel } from '@/components/ui/StatePanel';
 import { ExerciseQueue } from '@/features/workout/components/ExerciseQueue';
+import { MuscleFocusCard } from '@/features/workout/components/MuscleFocusCard';
 import { SessionControlCard } from '@/features/workout/components/SessionControlCard';
+import { SwapExercisePanel } from '@/features/workout/components/SwapExercisePanel';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useWorkout } from '@/hooks/useWorkout';
 import { fadeUp, staggerContainer } from '@/utils/motion';
@@ -20,14 +22,20 @@ export default function WorkoutPage() {
     isChatModeEnabled,
     isSessionActive,
     isSessionComplete,
+    muscleFocus,
+    replacementOptions,
+    selectedExercise,
     session,
     workoutStats,
     completeSet,
-    reorderBlock,
+    replaceExercise,
     resetRestTimer,
+    selectExercise,
     startSession,
     toggleChatMode,
+    toggleIntensityMode,
   } = useWorkout();
+  const selectedExerciseIndex = exerciseItems.findIndex((item) => item.key === selectedExercise?.key);
 
   return (
     <motion.div
@@ -37,19 +45,19 @@ export default function WorkoutPage() {
       animate="animate"
     >
       <PageHeader
-        eyebrow="Workout Screen Shell"
-        title="A focused gym-mode interface with big signals and low noise."
-        mobileTitle="Workout shell"
-        description="The workout shell is designed for glanceability under fatigue: active set state, controlled rest pacing, and quiet AI coaching that only appears when it adds value."
-        mobileDescription="Live set state, rest pacing, and quiet AI cues."
-        meta={['Gym mode UI', 'Chat mode ready', 'Form trainer ready']}
+        eyebrow="Workout"
+        title="A personal trainer shell built for fast decisions under fatigue."
+        mobileTitle="Today’s workout"
+        description="This screen now reads from your saved split, injuries, recovery, and coach tone so today feels like your own trainer wrote it, not a generic demo."
+        mobileDescription="Trainer-built session, swaps, and muscle guidance."
+        meta={['Today’s focus', 'Swap exercise', 'Ask trainer']}
         actions={
           <>
             <Button disabled={isSessionActive} onClick={startSession}>
               {isSessionComplete ? 'Restart session' : isSessionActive ? 'Session live' : 'Start session'}
             </Button>
             <Button variant="secondary" onClick={toggleChatMode}>
-              {isChatModeEnabled ? 'Close chat coach' : 'Open chat coach'}
+              {isChatModeEnabled ? 'Close trainer chat' : 'Ask trainer'}
             </Button>
           </>
         }
@@ -82,16 +90,14 @@ export default function WorkoutPage() {
               {session.stateLabel}
             </Badge>
             <Badge icon="chat" tone="neutral">
-              {isChatModeEnabled ? 'Coach mode active' : 'Coach mode restrained'}
+              {isChatModeEnabled ? 'Trainer chat open' : 'Trainer chat ready'}
             </Badge>
           </div>
           <h3 className="mt-6 font-display text-3xl font-semibold tracking-tight text-white">
-            {isSessionComplete ? 'Session summary posture' : 'Live coaching posture'}
+            {isSessionComplete ? 'Session summary posture' : 'Why this workout?'}
           </h3>
           <p className="mt-3 text-sm leading-7 text-slate-400">
-            {isSessionComplete
-              ? 'The shell keeps the close-out state clear: completed work, believable duration, and a clean success signal without resetting underneath you.'
-              : 'The shell is optimized for in-gym speed: no clutter, large decision points, and a visible recovery status before each key movement.'}
+            {isSessionComplete ? session.notes : session.whyThisWorkout}
           </p>
 
           <div className="mt-6 space-y-3">
@@ -109,29 +115,34 @@ export default function WorkoutPage() {
 
       <motion.section className="grid gap-4 sm:gap-6 xl:grid-cols-[1.1fr_0.9fr]" variants={fadeUp}>
         <StatePanel
-          title="Exercise queue"
-          description="Large touch targets and clear pacing keep this shell usable mid-session."
-          action={
-            <Button variant="ghost" onClick={reorderBlock}>
-              Reorder block
-            </Button>
-          }
+          title="Today’s workout"
+          description="Tap any movement to see muscle focus, form cues, and same-muscle swaps."
         >
-          <ExerciseQueue items={exerciseItems} />
+          <ExerciseQueue items={exerciseItems} onSelect={selectExercise} />
         </StatePanel>
 
         <StatePanel
-          title="Smart Form Trainer"
-          description="Camera and pose feedback can drop into the shell without breaking layout."
-          isEmpty
-          emptyIcon="camera"
-          emptyTitle={isSessionActive ? 'Camera feed is not attached yet' : 'Form trainer is standing by'}
-          emptyDescription={
-            isSessionActive
-              ? 'The form trainer panel is ready for a live camera stream, movement scoring, and corrective cue overlays as soon as the vision pipeline is connected.'
-              : 'Start the workout session and this surface is ready to receive camera-driven scoring, movement tracking, and quiet corrective cues.'
-          }
-        />
+          title={selectedExercise ? `${selectedExercise.name} guidance` : 'Muscle focus'}
+          description="This premium card stays visual, practical, and gym-floor useful."
+        >
+          <MuscleFocusCard focus={muscleFocus} />
+        </StatePanel>
+      </motion.section>
+
+      <motion.section variants={fadeUp}>
+        <StatePanel
+          title="Swap exercise"
+          description="Not feeling a movement today? Swap it without breaking the plan."
+        >
+          <SwapExercisePanel
+            currentExercise={selectedExercise}
+            feedbackMessage={session.feedbackMessage}
+            isEasyMode={session.easyMode}
+            onReplace={(replacementKey) => replaceExercise(selectedExerciseIndex, replacementKey)}
+            onToggleIntensityMode={toggleIntensityMode}
+            options={replacementOptions}
+          />
+        </StatePanel>
       </motion.section>
     </motion.div>
   );

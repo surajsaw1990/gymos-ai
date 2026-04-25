@@ -104,7 +104,7 @@ export function AppSidebar() {
               {utilityNavigation[0].label}
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Fine-tune coaching identity, {resolveReminderLabel(userProfile.reminders).toLowerCase()}, and your {userProfile.cadence} rhythm.
+              Fine-tune {userProfile.name}&apos;s coaching identity, {resolveReminderLabel(userProfile.reminders).toLowerCase()}, and your {userProfile.workoutDaysPerWeek}-day rhythm.
             </p>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-brand-400/18 bg-brand-400/10 text-brand-300">
@@ -126,8 +126,8 @@ export function AppSidebar() {
           </div>
           <p className="mt-3 text-sm leading-7 text-slate-400">
             {analytics.recovery >= 86
-              ? 'Recovery is high enough for a strength-biased session with moderate volume.'
-              : 'Recovery is steady, so the system is protecting quality and pacing tonight.'}
+              ? `${userProfile.trainerName} sees enough readiness for a confident session.`
+              : `${userProfile.trainerName} is protecting quality and pacing tonight.`}
           </p>
         </div>
 
