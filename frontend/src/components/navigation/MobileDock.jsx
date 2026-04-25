@@ -30,7 +30,7 @@ export function MobileDock() {
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <div className="premium-border mx-auto flex max-w-md items-center justify-between rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(17,29,50,0.92),rgba(7,16,31,0.96))] px-1.5 py-1.5 shadow-[0_-8px_30px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
+      <div className="premium-border mx-auto flex max-w-[430px] items-center justify-between rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(17,29,50,0.92),rgba(7,16,31,0.96))] px-1.5 py-1.5 shadow-[0_-8px_30px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
         {primaryNavigation.map((item) => {
           const isActive = isItemActive(item);
 

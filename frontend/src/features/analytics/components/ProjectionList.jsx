@@ -6,11 +6,11 @@ export function ProjectionList({ items }) {
           key={item.lift}
           className="panel-muted flex items-center justify-between gap-4 rounded-[24px] px-4 py-4"
         >
-          <div>
-            <h4 className="font-medium text-white">{item.lift}</h4>
-            <p className="mt-1 text-sm text-slate-400">Current: {item.current}</p>
+          <div className="min-w-0 flex-1">
+            <h4 className="break-words font-medium text-white">{item.lift}</h4>
+            <p className="mt-1 break-words text-sm text-slate-400">Current: {item.current}</p>
           </div>
-          <div className="text-right">
+          <div className="shrink-0 text-right">
             <p className="text-xs tracking-[0.2em] text-slate-500 uppercase">Projected</p>
             <p className="mt-2 font-display text-xl font-semibold text-white">{item.target}</p>
           </div>

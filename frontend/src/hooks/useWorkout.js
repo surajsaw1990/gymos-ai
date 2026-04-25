@@ -142,6 +142,7 @@ export function useWorkout() {
     stateLabel: sessionStateLabel,
     setProgressLabel,
     summary: workout.sessionSummary,
+    restSecondsRemaining: workout.restSecondsRemaining,
   };
 
   const workoutStats = [
@@ -242,6 +243,7 @@ export function useWorkout() {
     coachCues,
     currentExercise,
     exerciseItems,
+    canCompleteSet: workout.sessionActive && workout.restSecondsRemaining === 0,
     isChatModeEnabled: workout.chatModeEnabled,
     isChatPending: workout.chatPending,
     isSessionActive: workout.sessionActive,

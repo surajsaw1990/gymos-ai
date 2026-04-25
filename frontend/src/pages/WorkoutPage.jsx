@@ -14,6 +14,7 @@ import { fadeUp, staggerContainer } from '@/utils/motion';
 export default function WorkoutPage() {
   useDocumentTitle('Workout');
   const {
+    canCompleteSet,
     coachCues,
     exerciseItems,
     isChatModeEnabled,
@@ -62,6 +63,7 @@ export default function WorkoutPage() {
 
       <motion.section className="grid gap-4 sm:gap-6 xl:grid-cols-[1.15fr_0.85fr]" variants={fadeUp}>
         <SessionControlCard
+          canCompleteSet={canCompleteSet}
           isChatModeEnabled={isChatModeEnabled}
           isSessionActive={isSessionActive}
           isSessionComplete={isSessionComplete}

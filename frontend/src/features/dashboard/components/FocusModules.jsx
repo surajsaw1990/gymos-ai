@@ -18,10 +18,10 @@ export function FocusModules({ modules }) {
               {module.id}
             </span>
           </div>
-          <h4 className="mt-3 font-display text-base font-semibold text-white sm:mt-4 sm:text-lg">
+          <h4 className="mt-3 break-words font-display text-base font-semibold text-white sm:mt-4 sm:text-lg">
             {module.title}
           </h4>
-          <p className="mt-2 text-sm leading-6 text-slate-400 sm:leading-7">{module.summary}</p>
+          <p className="mt-2 break-words text-sm leading-6 text-slate-400 sm:leading-7">{module.summary}</p>
         </motion.article>
       ))}
     </div>

@@ -7,8 +7,8 @@ import { cn } from '@/utils/cn';
 
 export function ChatPanel() {
   const [draft, setDraft] = useState('');
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const scrollContainerRef = useRef(null);
-  const endRef = useRef(null);
   const {
     chatMessages,
     currentExercise,
@@ -33,6 +33,31 @@ export function ChatPanel() {
     });
   }, [chatMessages, isChatPending]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) {
+      return undefined;
+    }
+
+    const viewport = window.visualViewport;
+
+    const updateKeyboardOffset = () => {
+      const nextOffset = Math.max(
+        0,
+        Math.round(window.innerHeight - viewport.height - viewport.offsetTop),
+      );
+      setKeyboardOffset(nextOffset);
+    };
+
+    updateKeyboardOffset();
+    viewport.addEventListener('resize', updateKeyboardOffset);
+    viewport.addEventListener('scroll', updateKeyboardOffset);
+
+    return () => {
+      viewport.removeEventListener('resize', updateKeyboardOffset);
+      viewport.removeEventListener('scroll', updateKeyboardOffset);
+    };
+  }, []);
+
   const handleSubmit = (event) => {
     event.preventDefault();
 
@@ -52,6 +77,12 @@ export function ChatPanel() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.98 }}
         transition={{ duration: 0.22, ease: 'easeOut' }}
+        style={{
+          bottom:
+            keyboardOffset > 0
+              ? `calc(env(safe-area-inset-bottom) + ${keyboardOffset + 16}px)`
+              : undefined,
+        }}
       >
         <div className="panel-surface premium-border ambient-frame overflow-hidden rounded-[30px] border border-white/10 shadow-[0_22px_80px_rgba(0,0,0,0.42)]">
           <div className="px-4 py-4 sm:px-5">
@@ -90,7 +121,7 @@ export function ChatPanel() {
 
           <div
             ref={scrollContainerRef}
-            className="max-h-[45vh] space-y-3 overflow-y-auto px-4 py-4 sm:max-h-[28rem] sm:px-5"
+            className="max-h-[min(46dvh,22rem)] space-y-3 overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[28rem] sm:px-5"
           >
             {chatMessages.map((message) => (
               <div
@@ -120,8 +151,6 @@ export function ChatPanel() {
                 </div>
               </div>
             ) : null}
-
-            <div ref={endRef} />
           </div>
 
           <div className="soft-divider" />

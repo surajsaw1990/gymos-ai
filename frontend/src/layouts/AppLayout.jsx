@@ -48,7 +48,7 @@ export default function AppLayout() {
     ) || primaryNavigation[0];
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-screen overflow-x-hidden">
       <div className="hero-orb absolute -left-24 top-12 h-72 w-72 rounded-full opacity-90" />
       <div className="hero-orb absolute right-0 top-1/4 h-96 w-96 rounded-full opacity-70" />
       <div className="hero-orb absolute bottom-0 left-1/3 h-64 w-64 rounded-full opacity-55" />
@@ -56,7 +56,7 @@ export default function AppLayout() {
       <div className="relative mx-auto flex min-h-screen max-w-[1440px] gap-3 px-3 py-3 sm:px-4 sm:py-4 md:px-6 lg:gap-4 lg:px-8">
         <AppSidebar />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3 pb-[calc(env(safe-area-inset-bottom)+7.9rem)] md:gap-4 md:pb-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-x-clip pb-[calc(env(safe-area-inset-bottom)+8.35rem)] md:gap-4 md:pb-4">
           <MobileTopBar activeItem={activeItem} />
 
           <motion.header
@@ -112,7 +112,7 @@ export default function AppLayout() {
           <AnimatePresence mode="wait">
             <motion.main
               key={location.pathname}
-              className="flex-1 pb-1"
+              className="flex-1 min-w-0 overflow-x-clip pb-2"
               variants={routeTransition}
               initial="initial"
               animate="animate"

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -31,6 +31,15 @@ export default function DietPage() {
     toggleGroceryPreview,
   } = useDiet();
   const [isLoggingDinner, setIsLoggingDinner] = useState(false);
+  const dinnerTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (dinnerTimerRef.current) {
+        window.clearTimeout(dinnerTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleDinnerLog = () => {
     if (isLoggingDinner) {
@@ -38,9 +47,10 @@ export default function DietPage() {
     }
 
     setIsLoggingDinner(true);
-    window.setTimeout(() => {
+    dinnerTimerRef.current = window.setTimeout(() => {
       logDinnerPlan();
       setIsLoggingDinner(false);
+      dinnerTimerRef.current = null;
     }, 650);
   };
 

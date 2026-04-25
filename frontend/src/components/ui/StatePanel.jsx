@@ -35,7 +35,7 @@ export function StatePanel({
 
         <div className="soft-divider" />
 
-        <div className={cn('min-h-[116px] sm:min-h-[140px]', contentClassName)}>
+        <div className={cn('min-h-[116px] min-w-0 sm:min-h-[140px]', contentClassName)}>
           {isLoading ? <LoadingBlock lines={4} /> : null}
           {!isLoading && isEmpty ? (
             <EmptyState

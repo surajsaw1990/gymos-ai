@@ -11,13 +11,13 @@ export function Badge({ children, icon, tone = 'brand', className }) {
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold tracking-[0.2em] uppercase',
+        'inline-flex max-w-full min-w-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold tracking-[0.2em] uppercase',
         tones[tone],
         className,
       )}
     >
       {icon ? <AppIcon name={icon} className="h-3.5 w-3.5" /> : null}
-      <span>{children}</span>
+      <span className="truncate">{children}</span>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { MetricCard } from '@/components/ui/MetricCard';
@@ -24,6 +24,15 @@ export default function AnalyticsPage() {
     strengthProjection,
   } = useAnalytics();
   const [isRefreshingPrediction, setIsRefreshingPrediction] = useState(false);
+  const refreshTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleRefreshPrediction = () => {
     if (isRefreshingPrediction) {
@@ -31,9 +40,10 @@ export default function AnalyticsPage() {
     }
 
     setIsRefreshingPrediction(true);
-    window.setTimeout(() => {
+    refreshTimerRef.current = window.setTimeout(() => {
       refreshPrediction();
       setIsRefreshingPrediction(false);
+      refreshTimerRef.current = null;
     }, 700);
   };
 

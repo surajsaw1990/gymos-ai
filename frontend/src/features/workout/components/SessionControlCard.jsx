@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Panel } from '@/components/ui/Panel';
 
 export function SessionControlCard({
+  canCompleteSet,
   isChatModeEnabled,
   isSessionActive,
   isSessionComplete,
@@ -100,8 +101,12 @@ export function SessionControlCard({
       ) : null}
 
       <div className="mt-5 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-3">
-        <Button disabled={!isSessionActive} onClick={onCompleteSet}>
-          {isSessionComplete ? 'Session complete' : 'Complete set'}
+        <Button disabled={!canCompleteSet} onClick={onCompleteSet}>
+          {isSessionComplete
+            ? 'Session complete'
+            : session.restSecondsRemaining > 0
+              ? 'Rest in progress'
+              : 'Complete set'}
         </Button>
         <Button disabled={!isSessionActive} variant="ghost" onClick={onResetRestTimer}>
           Reset rest
