@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -19,6 +20,7 @@ export default function DietPage() {
     dietStats,
     groceryItems,
     isGroceryPreviewOpen,
+    lastDinnerLog,
     logDinnerPlan,
     macroSplit,
     mealTimeline,
@@ -28,6 +30,19 @@ export default function DietPage() {
     smartSwaps,
     toggleGroceryPreview,
   } = useDiet();
+  const [isLoggingDinner, setIsLoggingDinner] = useState(false);
+
+  const handleDinnerLog = () => {
+    if (isLoggingDinner) {
+      return;
+    }
+
+    setIsLoggingDinner(true);
+    window.setTimeout(() => {
+      logDinnerPlan();
+      setIsLoggingDinner(false);
+    }, 650);
+  };
 
   return (
     <motion.div
@@ -45,7 +60,9 @@ export default function DietPage() {
         meta={['Budget-based diet engine', 'Meal timing ready', 'Macro-safe layout']}
         actions={
           <>
-            <Button onClick={logDinnerPlan}>Log dinner plan</Button>
+            <Button loading={isLoggingDinner} onClick={handleDinnerLog}>
+              Log dinner plan
+            </Button>
             <Button variant="secondary" onClick={toggleGroceryPreview}>
               {isGroceryPreviewOpen ? 'Hide grocery view' : 'Open grocery view'}
             </Button>
@@ -77,6 +94,12 @@ export default function DietPage() {
               ? `You still have $${remainingBudget.toFixed(2)} available, and the dinner slot is now helping close the protein target without drifting away from budget.`
               : 'You still have enough room for a protein-forward dinner without losing control of total spend or late-night appetite management.'}
           </p>
+
+          {lastDinnerLog ? (
+            <div className="panel-muted mt-4 rounded-[20px] px-4 py-3 text-sm leading-6 text-slate-300 sm:mt-5 sm:rounded-[24px] sm:py-4 sm:leading-7">
+              Logged dinner: +{lastDinnerLog.proteinGain}g protein, +{lastDinnerLog.carbGain}g carbs, +{lastDinnerLog.fatGain}g fats for ${lastDinnerLog.spend.toFixed(2)}.
+            </div>
+          ) : null}
 
           <div className="mt-5 sm:mt-8">
             <MacroSplit items={macroSplit} />

@@ -84,11 +84,12 @@ export default function WorkoutPage() {
             </Badge>
           </div>
           <h3 className="mt-6 font-display text-3xl font-semibold tracking-tight text-white">
-            Live coaching posture
+            {isSessionComplete ? 'Session summary posture' : 'Live coaching posture'}
           </h3>
           <p className="mt-3 text-sm leading-7 text-slate-400">
-            The shell is optimized for in-gym speed: no clutter, large decision points, and a
-            visible recovery status before each key movement.
+            {isSessionComplete
+              ? 'The shell keeps the close-out state clear: completed work, believable duration, and a clean success signal without resetting underneath you.'
+              : 'The shell is optimized for in-gym speed: no clutter, large decision points, and a visible recovery status before each key movement.'}
           </p>
 
           <div className="mt-6 space-y-3">

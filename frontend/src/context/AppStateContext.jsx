@@ -52,8 +52,12 @@ const initialState = {
     sessionComplete: false,
     currentExerciseIndex: 0,
     currentSet: 1,
+    totalSetsCompleted: 0,
+    sessionStartedAt: null,
+    sessionSummary: null,
     restSecondsRemaining: 0,
     chatModeEnabled: false,
+    chatPending: false,
     chatMessages: [
       {
         id: 'coach-welcome',
@@ -72,15 +76,16 @@ const initialState = {
     remainingBudget: 2.55,
     proteinTarget: 148,
     proteinConsumed: 117,
+    carbsConsumed: 136,
+    fatsConsumed: 47,
     adherence: 92,
     dinnerLogCount: 0,
     dinnerLogged: false,
-    dinnerCost: 2.95,
-    dinnerProtein: 31,
+    lastDinnerLog: null,
     macroSplit: [
-      { label: 'Protein', value: 38, color: 'bg-brand-400' },
-      { label: 'Carbs', value: 34, color: 'bg-mint-400' },
-      { label: 'Fats', value: 28, color: 'bg-sky-400' },
+      { label: 'Protein', value: 39, color: 'bg-brand-400' },
+      { label: 'Carbs', value: 45, color: 'bg-mint-400' },
+      { label: 'Fats', value: 16, color: 'bg-sky-400' },
     ],
     mealTimeline: [
       {
@@ -159,6 +164,7 @@ const initialState = {
       'Smart Challenges predicts high adherence if workout start time stays after 6 PM.',
       'Body Transformation Visualizer is waiting for the next progress capture.',
     ],
+    lastRefreshSummary: '',
     hasCapture: false,
     latestCaptureLabel: '',
   },
@@ -183,6 +189,63 @@ function updateMealTimeline(diet, dinnerTitle, dinnerDetail, dinnerCost) {
         }
       : meal,
   );
+}
+
+function sumWorkoutSets(queue) {
+  return queue.reduce((total, item) => total + item.sets, 0);
+}
+
+function buildWorkoutSuccessMessage(goal) {
+  if (goal === 'strength') {
+    return 'Strength work landed cleanly. Recovery can stay calm because the hard sets were focused, not noisy.';
+  }
+
+  if (goal === 'discipline') {
+    return 'Another disciplined session is locked in. The win here is clean completion with zero wasted motion.';
+  }
+
+  return 'The session closed with strong pacing and clean adherence. That is exactly how recomposition stacks over time.';
+}
+
+function buildWorkoutSummary(state, totalSetsCompleted) {
+  const elapsedMinutes = state.workout.sessionStartedAt
+    ? Math.max(1, Math.round((Date.now() - state.workout.sessionStartedAt) / 60000))
+    : 1;
+  const mockDurationMinutes = Math.max(
+    24,
+    Math.round(totalSetsCompleted * 2.4 + state.workout.queue.length * 1.8),
+  );
+  const durationMinutes = Math.max(elapsedMinutes, mockDurationMinutes);
+
+  return {
+    totalSetsCompleted,
+    totalPlannedSets: sumWorkoutSets(state.workout.queue),
+    durationMinutes,
+    durationLabel: `${durationMinutes} min`,
+    message: buildWorkoutSuccessMessage(state.userProfile.goal),
+  };
+}
+
+function buildMacroSplit(protein, carbs, fats) {
+  const total = protein + carbs + fats;
+
+  if (total <= 0) {
+    return [
+      { label: 'Protein', value: 34, color: 'bg-brand-400' },
+      { label: 'Carbs', value: 38, color: 'bg-mint-400' },
+      { label: 'Fats', value: 28, color: 'bg-sky-400' },
+    ];
+  }
+
+  const proteinValue = Math.round((protein / total) * 100);
+  const carbsValue = Math.round((carbs / total) * 100);
+  const fatsValue = Math.max(0, 100 - proteinValue - carbsValue);
+
+  return [
+    { label: 'Protein', value: proteinValue, color: 'bg-brand-400' },
+    { label: 'Carbs', value: carbsValue, color: 'bg-mint-400' },
+    { label: 'Fats', value: fatsValue, color: 'bg-sky-400' },
+  ];
 }
 
 function appStateReducer(state, action) {
@@ -212,9 +275,13 @@ function appStateReducer(state, action) {
           ...state.workout,
           sessionActive: true,
           sessionComplete: false,
-          currentExerciseIndex: action.payload?.restart ? 0 : state.workout.currentExerciseIndex,
-          currentSet: action.payload?.restart ? 1 : state.workout.currentSet,
+          currentExerciseIndex: 0,
+          currentSet: 1,
+          totalSetsCompleted: 0,
+          sessionStartedAt: Date.now(),
+          sessionSummary: null,
           restSecondsRemaining: 0,
+          chatPending: false,
         },
       };
 
@@ -249,6 +316,7 @@ function appStateReducer(state, action) {
       }
 
       const currentExercise = state.workout.queue[state.workout.currentExerciseIndex];
+      const completedSets = state.workout.totalSetsCompleted + 1;
 
       if (!currentExercise) {
         return state;
@@ -260,21 +328,21 @@ function appStateReducer(state, action) {
           workout: {
             ...state.workout,
             currentSet: state.workout.currentSet + 1,
+            totalSetsCompleted: completedSets,
             restSecondsRemaining: currentExercise.restSeconds,
           },
         };
       }
 
       if (state.workout.currentExerciseIndex < state.workout.queue.length - 1) {
-        const nextExercise = state.workout.queue[state.workout.currentExerciseIndex + 1];
-
         return {
           ...state,
           workout: {
             ...state.workout,
             currentExerciseIndex: state.workout.currentExerciseIndex + 1,
             currentSet: 1,
-            restSecondsRemaining: nextExercise.restSeconds,
+            totalSetsCompleted: completedSets,
+            restSecondsRemaining: currentExercise.restSeconds,
           },
         };
       }
@@ -287,6 +355,8 @@ function appStateReducer(state, action) {
           sessionComplete: true,
           currentExerciseIndex: state.workout.currentExerciseIndex,
           currentSet: currentExercise.sets,
+          totalSetsCompleted: completedSets,
+          sessionSummary: buildWorkoutSummary(state, completedSets),
           restSecondsRemaining: 0,
         },
       };
@@ -298,6 +368,15 @@ function appStateReducer(state, action) {
         workout: {
           ...state.workout,
           chatModeEnabled: !state.workout.chatModeEnabled,
+        },
+      };
+
+    case 'SET_WORKOUT_CHAT_PENDING':
+      return {
+        ...state,
+        workout: {
+          ...state.workout,
+          chatPending: action.payload.value,
         },
       };
 
@@ -329,18 +408,15 @@ function appStateReducer(state, action) {
     }
 
     case 'LOG_DINNER_PLAN': {
-      const isFirstLog = state.diet.dinnerLogCount === 0;
-      const spend = isFirstLog ? state.diet.dinnerCost : 0.75;
-      const proteinGain = isFirstLog ? state.diet.dinnerProtein : 8;
-      const nextProtein = Math.min(
-        state.diet.proteinTarget + 18,
-        state.diet.proteinConsumed + proteinGain,
-      );
-      const nextAdherence = Math.min(100, state.diet.adherence + (isFirstLog ? 5 : 2));
+      const { carbGain, fatGain, proteinGain, spend } = action.payload;
+      const nextProtein = state.diet.proteinConsumed + proteinGain;
+      const nextCarbs = state.diet.carbsConsumed + carbGain;
+      const nextFats = state.diet.fatsConsumed + fatGain;
       const nextBudget = Math.max(0, state.diet.remainingBudget - spend);
-      const macroProtein = Math.min(52, state.diet.macroSplit[0].value + (isFirstLog ? 4 : 1));
-      const macroCarbs = Math.max(24, state.diet.macroSplit[1].value - 1);
-      const macroFats = Math.max(20, 100 - macroProtein - macroCarbs);
+      const nextAdherence = Math.min(100, state.diet.adherence + 2);
+      const dinnerTitle = state.diet.dinnerLogCount === 0 ? 'Dinner logged' : 'Dinner refined';
+      const dinnerDetail =
+        `${proteinGain}g protein, ${carbGain}g carbs, and ${fatGain}g fats were added without breaking the evening budget.`;
 
       return {
         ...state,
@@ -348,22 +424,20 @@ function appStateReducer(state, action) {
           ...state.diet,
           remainingBudget: nextBudget,
           proteinConsumed: nextProtein,
+          carbsConsumed: nextCarbs,
+          fatsConsumed: nextFats,
           adherence: nextAdherence,
           dinnerLogCount: state.diet.dinnerLogCount + 1,
           dinnerLogged: true,
-          macroSplit: [
-            { ...state.diet.macroSplit[0], value: macroProtein },
-            { ...state.diet.macroSplit[1], value: macroCarbs },
-            { ...state.diet.macroSplit[2], value: macroFats },
-          ],
-          mealTimeline: updateMealTimeline(
-            state.diet,
-            isFirstLog ? 'Dinner logged' : 'Dinner refined',
-            isFirstLog
-              ? 'Protein-forward dinner has been added and budget impact is now reflected.'
-              : 'You tightened the dinner plan to improve protein without blowing the budget.',
+          lastDinnerLog: {
+            proteinGain,
+            carbGain,
+            fatGain,
             spend,
-          ),
+            message: dinnerDetail,
+          },
+          macroSplit: buildMacroSplit(nextProtein, nextCarbs, nextFats),
+          mealTimeline: updateMealTimeline(state.diet, dinnerTitle, dinnerDetail, spend),
         },
       };
     }

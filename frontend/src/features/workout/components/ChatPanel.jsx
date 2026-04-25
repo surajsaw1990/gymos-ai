@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -7,9 +7,12 @@ import { cn } from '@/utils/cn';
 
 export function ChatPanel() {
   const [draft, setDraft] = useState('');
+  const scrollContainerRef = useRef(null);
+  const endRef = useRef(null);
   const {
     chatMessages,
     currentExercise,
+    isChatPending,
     isSessionActive,
     isSessionComplete,
     session,
@@ -17,10 +20,23 @@ export function ChatPanel() {
     toggleChatMode,
   } = useWorkout();
 
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [chatMessages, isChatPending]);
+
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    if (!draft.trim()) {
+    if (!draft.trim() || isChatPending) {
       return;
     }
 
@@ -62,7 +78,7 @@ export function ChatPanel() {
                 Chat open
               </Badge>
               <Badge icon="dumbbell" tone="neutral">
-                {isSessionComplete ? 'Session complete' : currentExercise.name}
+                {isSessionComplete ? 'Session summary' : currentExercise.name}
               </Badge>
               <Badge icon="pulse" tone="mint">
                 {isSessionActive ? 'Live session' : 'Coach standby'}
@@ -72,14 +88,14 @@ export function ChatPanel() {
 
           <div className="soft-divider" />
 
-          <div className="max-h-[45vh] space-y-3 overflow-y-auto px-4 py-4 sm:max-h-[28rem] sm:px-5">
+          <div
+            ref={scrollContainerRef}
+            className="max-h-[45vh] space-y-3 overflow-y-auto px-4 py-4 sm:max-h-[28rem] sm:px-5"
+          >
             {chatMessages.map((message) => (
               <div
                 key={message.id}
-                className={cn(
-                  'flex',
-                  message.role === 'user' ? 'justify-end' : 'justify-start',
-                )}
+                className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}
               >
                 <div
                   className={cn(
@@ -93,6 +109,19 @@ export function ChatPanel() {
                 </div>
               </div>
             ))}
+
+            {isChatPending ? (
+              <div className="flex justify-start">
+                <div className="panel-muted flex items-center gap-2 rounded-[24px] px-4 py-3 text-sm text-slate-300">
+                  <span className="h-2 w-2 rounded-full bg-brand-300 animate-pulse" />
+                  <span className="h-2 w-2 rounded-full bg-brand-300 animate-pulse [animation-delay:120ms]" />
+                  <span className="h-2 w-2 rounded-full bg-brand-300 animate-pulse [animation-delay:240ms]" />
+                  <span className="ml-1 text-slate-400">Coach is thinking</span>
+                </div>
+              </div>
+            ) : null}
+
+            <div ref={endRef} />
           </div>
 
           <div className="soft-divider" />
@@ -114,7 +143,9 @@ export function ChatPanel() {
               <p className="text-xs leading-5 text-slate-500">
                 {session.stateLabel}. Messages stay local for now.
               </p>
-              <Button type="submit">Send</Button>
+              <Button loading={isChatPending} type="submit">
+                Send
+              </Button>
             </div>
           </form>
         </div>

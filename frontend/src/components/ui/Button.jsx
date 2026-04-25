@@ -14,7 +14,9 @@ const variants = {
 export function Button({
   children,
   className,
+  disabled = false,
   icon = false,
+  loading = false,
   to,
   type = 'button',
   variant = 'primary',
@@ -26,19 +28,27 @@ export function Button({
     className,
   );
 
+  const content = (
+    <>
+      {loading ? (
+        <span className="h-4 w-4 rounded-full border-2 border-current/35 border-t-current animate-spin" />
+      ) : null}
+      <span>{children}</span>
+      {icon && !loading ? <ArrowRightIcon className="h-4 w-4" /> : null}
+    </>
+  );
+
   if (to) {
     return (
       <Link className={sharedClassName} to={to} {...props}>
-        <span>{children}</span>
-        {icon ? <ArrowRightIcon className="h-4 w-4" /> : null}
+        {content}
       </Link>
     );
   }
 
   return (
-    <button className={sharedClassName} type={type} {...props}>
-      <span>{children}</span>
-      {icon ? <ArrowRightIcon className="h-4 w-4" /> : null}
+    <button className={sharedClassName} disabled={loading || disabled} type={type} {...props}>
+      {content}
     </button>
   );
 }

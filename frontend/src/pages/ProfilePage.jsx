@@ -23,6 +23,18 @@ function formatSavedAt(savedAt) {
   return savedAt ? new Date(savedAt).toLocaleDateString() : 'Not saved yet';
 }
 
+function buildProfileIntro(userProfile) {
+  if (userProfile.goal === 'strength') {
+    return 'This profile is tuned for strength-first coaching with deliberate pacing, clearer load decisions, and a calm recovery bias.';
+  }
+
+  if (userProfile.goal === 'discipline') {
+    return 'This profile is tuned for habit-first coaching so routine, reminders, and repeatable cadence stay easier to protect.';
+  }
+
+  return 'This profile is tuned for balanced recomposition with clean workout pacing, budget-aware nutrition, and low-noise coaching.';
+}
+
 export default function ProfilePage() {
   useDocumentTitle('Profile');
   const { state, dispatch } = useAppState();
@@ -69,9 +81,9 @@ export default function ProfilePage() {
   ];
 
   const profileShortcuts = [
-    `Goal focus is currently ${getOptionLabel(goalOptions, userProfile.goal)}.`,
-    `${getOptionLabel(reminderWindowOptions, userProfile.reminders)} is active with a ${getOptionLabel(coachToneOptions, userProfile.tone).toLowerCase()} tone.`,
-    `Discipline engine is tracking a ${analytics.streak}-day run at your ${userProfile.cadence} pace.`,
+    `Goal focus is currently ${getOptionLabel(goalOptions, userProfile.goal)} with a ${getOptionLabel(coachToneOptions, userProfile.tone).toLowerCase()} tone.`,
+    `${getOptionLabel(reminderWindowOptions, userProfile.reminders)} is active around your ${getOptionLabel(cadenceOptions, userProfile.cadence).toLowerCase()} rhythm.`,
+    `${getOptionLabel(budgetOptions, userProfile.budget)} is shaping food guidance while the discipline engine tracks a ${analytics.streak}-day run.`,
   ];
 
   const saveProfile = () => {
@@ -120,8 +132,7 @@ export default function ProfilePage() {
             Personal setup with a low-noise coaching feel.
           </h3>
           <p className="mt-2.5 max-w-2xl text-sm leading-6 text-slate-400 sm:mt-3 sm:leading-7">
-            This screen keeps the identity layer compact on mobile while still giving direct access
-            to onboarding, reminders, and future profile-linked systems.
+            {buildProfileIntro(userProfile)}
           </p>
 
           <div className="mt-5 grid gap-2.5 sm:mt-6 sm:gap-3">

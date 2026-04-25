@@ -51,38 +51,39 @@ export function useAnalytics() {
     consistencyFeed: analytics.consistencyFeed,
     disciplineScore: analytics.disciplineScore,
     hasCapture: analytics.hasCapture,
+    lastRefreshSummary: analytics.lastRefreshSummary,
     latestCaptureLabel: analytics.latestCaptureLabel,
     projectedWeeks: analytics.projectedWeeks,
     recovery: analytics.recovery,
     streak: analytics.streak,
     strengthProjection: analytics.strengthProjection,
     refreshPrediction() {
-      const nextRecovery = clamp(analytics.recovery + randomInteger(-4, 4), 78, 98);
+      const nextRecovery = clamp(analytics.recovery + randomInteger(-2, 2), 82, 95);
       const nextProjectedWeeks = clamp(
         analytics.projectedWeeks + randomInteger(-1, 1),
-        4,
-        8,
+        5,
+        7,
       );
       const nextStrengthSlope = clamp(
-        analytics.strengthSlope + randomFloat(-0.8, 1.1),
-        6.4,
-        13.8,
+        analytics.strengthSlope + randomFloat(-0.3, 0.45),
+        8.1,
+        11.2,
       );
       const nextDisciplineScore = clamp(
-        analytics.disciplineScore + randomInteger(-3, 3),
-        84,
-        99,
+        analytics.disciplineScore + randomInteger(-1, 2),
+        88,
+        97,
       );
       const nextStreak = analytics.streak + randomInteger(0, 1);
       const nextBodyTrend = analytics.bodyTrend.map((item, index) => ({
         ...item,
-        value: clamp(item.value + randomInteger(index < 2 ? 0 : 1, 4), 48, 96),
+        value: clamp(item.value + randomInteger(index < 2 ? 0 : 0, 2), 50, 92),
       }));
       const nextStrengthProjection = analytics.strengthProjection.map((item, index) => {
         const currentWeight = parseWeight(item.current);
         const targetWeight = parseWeight(item.target);
-        const currentStep = index === 2 ? 5 : 2.5;
-        const targetStep = index === 2 ? 7.5 : 2.5;
+        const currentStep = index === 2 ? 2.5 : 1.25;
+        const targetStep = index === 2 ? 2.5 : 1.25;
 
         return {
           ...item,
@@ -90,6 +91,7 @@ export function useAnalytics() {
           target: formatWeight(targetWeight + randomInteger(0, 1) * targetStep),
         };
       });
+      const refreshSummary = `Forecast refreshed: recovery ${nextRecovery}%, strength slope +${nextStrengthSlope.toFixed(1)}%, projection holding near ${nextProjectedWeeks} weeks.`;
 
       dispatch({
         type: 'SET_ANALYTICS_SNAPSHOT',
@@ -101,12 +103,13 @@ export function useAnalytics() {
           streak: nextStreak,
           bodyTrend: nextBodyTrend,
           strengthProjection: nextStrengthProjection,
+          lastRefreshSummary: refreshSummary,
           consistencyFeed: [
-            `Recovery pulse recalculated at ${nextRecovery}% after the latest forecast refresh.`,
-            `Strength slope now reads +${nextStrengthSlope.toFixed(1)}% with cadence ${userProfile.cadence}.`,
+            refreshSummary,
+            `Discipline remains steady at ${nextDisciplineScore} with cadence ${userProfile.cadence}.`,
             diet.dinnerLogged
-              ? 'Diet adherence is currently supporting the forecast with dinner already logged.'
-              : 'Dinner plan is still the cleanest leverage point for an even stronger forecast.',
+              ? 'Dinner is logged, which keeps the current forecast grounded and believable.'
+              : 'Dinner planning is still the clearest lever for a slightly better forecast.',
           ],
         },
       });

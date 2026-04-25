@@ -12,6 +12,29 @@ function resolveBudgetLabel(budget) {
   return 'Balanced budget';
 }
 
+function randomInteger(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function buildDinnerPayload(remainingBudget, budgetMode) {
+  const proteinGain = randomInteger(10, 30);
+  const carbGain = randomInteger(5, 20);
+  const fatGain = randomInteger(3, 10);
+  const baseSpend =
+    proteinGain * 0.045 +
+    carbGain * 0.018 +
+    fatGain * 0.03 +
+    (budgetMode === 'performance' ? 0.35 : 0.15);
+  const spend = Number(Math.min(Math.max(baseSpend, 1.25), remainingBudget).toFixed(2));
+
+  return {
+    proteinGain,
+    carbGain,
+    fatGain,
+    spend,
+  };
+}
+
 export function useDiet() {
   const { state, dispatch } = useAppState();
   const { diet, userProfile } = state;
@@ -37,7 +60,9 @@ export function useDiet() {
     {
       label: 'Meal adherence',
       value: `${diet.adherence}%`,
-      detail: 'Budget-based diet choices are matching your target pattern well.',
+      detail: diet.lastDinnerLog
+        ? `Latest dinner close added ${diet.lastDinnerLog.proteinGain}g protein without overspending.`
+        : 'Budget-based diet choices are matching your target pattern well.',
       icon: 'chart',
     },
   ];
@@ -49,13 +74,17 @@ export function useDiet() {
     dietStats,
     groceryItems: diet.groceryItems,
     isGroceryPreviewOpen: diet.groceryPreviewOpen,
+    lastDinnerLog: diet.lastDinnerLog,
     macroSplit: diet.macroSplit,
     mealTimeline: diet.mealTimeline,
     proteinRemaining,
     remainingBudget: diet.remainingBudget,
     smartSwaps: diet.smartSwaps,
     logDinnerPlan() {
-      dispatch({ type: 'LOG_DINNER_PLAN' });
+      dispatch({
+        type: 'LOG_DINNER_PLAN',
+        payload: buildDinnerPayload(diet.remainingBudget, userProfile.budget),
+      });
     },
     refreshIdeas() {
       dispatch({ type: 'ROTATE_DIET_SWAPS' });

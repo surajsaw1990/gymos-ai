@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { MetricCard } from '@/components/ui/MetricCard';
@@ -16,11 +17,25 @@ export default function AnalyticsPage() {
     bodyTrend,
     consistencyFeed,
     hasCapture,
+    lastRefreshSummary,
     latestCaptureLabel,
     captureCheckIn,
     refreshPrediction,
     strengthProjection,
   } = useAnalytics();
+  const [isRefreshingPrediction, setIsRefreshingPrediction] = useState(false);
+
+  const handleRefreshPrediction = () => {
+    if (isRefreshingPrediction) {
+      return;
+    }
+
+    setIsRefreshingPrediction(true);
+    window.setTimeout(() => {
+      refreshPrediction();
+      setIsRefreshingPrediction(false);
+    }, 700);
+  };
 
   return (
     <motion.div
@@ -38,13 +53,21 @@ export default function AnalyticsPage() {
         meta={['Progress prediction', 'Transformation-ready', 'Empty-safe check-ins']}
         actions={
           <>
-            <Button onClick={refreshPrediction}>Refresh prediction</Button>
+            <Button loading={isRefreshingPrediction} onClick={handleRefreshPrediction}>
+              Refresh prediction
+            </Button>
             <Button variant="secondary" onClick={captureCheckIn}>
               {hasCapture ? 'Capture again' : 'Capture check-in'}
             </Button>
           </>
         }
       />
+
+      {lastRefreshSummary ? (
+        <motion.div className="panel-muted rounded-[22px] px-4 py-3.5 text-sm leading-6 text-slate-300 sm:rounded-[24px] sm:py-4 sm:leading-7" variants={fadeUp}>
+          {lastRefreshSummary}
+        </motion.div>
+      ) : null}
 
       <motion.section className="grid gap-3 sm:gap-4 lg:grid-cols-3" variants={fadeUp}>
         {analyticsStats.map((stat) => (

@@ -28,6 +28,24 @@ function createMessage(role, text) {
   };
 }
 
+function resolveCoachFallback(goal, tone) {
+  if (goal === 'strength') {
+    return tone === 'assertive'
+      ? 'Keep the bar speed honest. Strong reps only.'
+      : 'Keep the reps crisp and let bar speed decide how hard to push.';
+  }
+
+  if (goal === 'discipline') {
+    return tone === 'companion'
+      ? 'Stay with the routine. The clean finish matters more than forcing extra noise.'
+      : 'Stay repeatable. The win is showing up and finishing clean.';
+  }
+
+  return tone === 'assertive'
+    ? 'Stay tight, hit the planned work, and leave with something in reserve.'
+    : 'Keep the work smooth, focused, and easy to recover from tomorrow.';
+}
+
 function createCoachReply({
   currentExercise,
   nextQueuedExercise,
@@ -39,32 +57,49 @@ function createCoachReply({
   const normalized = text.toLowerCase();
 
   if (sessionComplete) {
-    return 'Session is complete. Walk it down, hydrate, and restart only when you are ready for another clean round.';
+    return 'Session is complete. Walk it down, hydrate, and take the win. Restart only when you want another clean round.';
   }
 
   if (normalized.includes('rest') || normalized.includes('timer')) {
     return restSecondsRemaining > 0
-      ? `Rest timer is at ${formatTimer(restSecondsRemaining)}. Breathe through the nose and keep the next set crisp.`
-      : `Rest window is clear. Start the next effort whenever your breathing feels settled.`;
+      ? `Rest timer is sitting at ${formatTimer(restSecondsRemaining)}. Let the breathing settle, then attack the next set cleanly.`
+      : 'Rest window is clear. Start the next effort whenever your breathing feels steady again.';
   }
 
   if (normalized.includes('next') || normalized.includes('after')) {
     return nextQueuedExercise
       ? `After ${currentExercise.name}, you roll into ${nextQueuedExercise.name}. Keep the transition quiet and efficient.`
-      : `You are on the final movement. Finish clean, then the session closes without extra filler.`;
+      : 'This is the final movement. Finish sharp, then let the session close without extra fluff.';
   }
 
   if (normalized.includes('form') || normalized.includes('technique')) {
     return currentExercise.notes;
   }
 
-  if (normalized.includes('hard') || normalized.includes('intensity')) {
+  if (normalized.includes('hard') || normalized.includes('intensity') || normalized.includes('weight')) {
     return userProfile.goal === 'strength'
-      ? 'Push the working sets hard, but keep one clean rep in reserve. The goal is output, not grind.'
-      : 'Keep the effort smooth and repeatable. The system is rewarding quality and consistency more than chaos.';
+      ? 'Push the working sets hard, but keep one clean rep in reserve. Output matters more than grinding.'
+      : 'Keep the effort challenging but repeatable. The system is rewarding quality more than chaos tonight.';
   }
 
-  return `Stay centered on ${currentExercise.name}. ${nextQueuedExercise ? `Up next is ${nextQueuedExercise.name}.` : 'This is the closing block, so finish sharp.'}`;
+  return resolveCoachFallback(userProfile.goal, userProfile.tone);
+}
+
+function buildSessionDescription({
+  currentExercise,
+  sessionActive,
+  sessionComplete,
+  sessionSummary,
+}) {
+  if (sessionComplete && sessionSummary) {
+    return `The session is complete with ${sessionSummary.totalSetsCompleted} sets finished in ${sessionSummary.durationLabel}.`;
+  }
+
+  if (sessionActive) {
+    return `Current movement: ${currentExercise.name}. Rest pacing stays visible and the next decision remains obvious.`;
+  }
+
+  return 'Start the session to activate live set tracking, rest pacing, and the in-gym coaching layer.';
 }
 
 export function useWorkout() {
@@ -77,19 +112,20 @@ export function useWorkout() {
     : workout.sessionActive
       ? 'Active session'
       : 'Ready to train';
+  const setProgressLabel = workout.sessionComplete
+    ? `Completed ${workout.totalSetsCompleted} sets`
+    : `Set ${workout.currentSet} of ${currentExercise.sets}`;
 
   const session = {
     title: workout.programTitle,
-    phase: workout.sessionComplete
-      ? 'Session complete'
-      : workout.sessionActive
-        ? `Set ${workout.currentSet} of ${currentExercise.sets}`
-        : 'Ready to start',
+    phase: setProgressLabel,
     recovery: resolveRecoveryStatus(analytics.recovery),
     nextExercise: workout.sessionComplete ? 'All movements complete' : currentExercise.name,
+    currentExerciseName: currentExercise.name,
     restTimer: formatTimer(workout.restSecondsRemaining),
     notes: workout.sessionComplete
-      ? 'You closed the full block cleanly. Restart when you want another focused round.'
+      ? workout.sessionSummary?.message ||
+        'You closed the full block cleanly. Restart when you want another focused round.'
       : currentExercise.notes,
     blockLabel:
       userProfile.goal === 'strength'
@@ -97,12 +133,15 @@ export function useWorkout() {
         : userProfile.goal === 'discipline'
           ? 'Consistency block'
           : 'Hybrid progression',
-    description: workout.sessionComplete
-      ? 'The session is complete. The queue is frozen until you choose to restart.'
-      : workout.sessionActive
-        ? `Current movement: ${currentExercise.name}. Rest pacing stays visible and the next decision remains obvious.`
-        : 'Start the session to activate live set tracking, rest pacing, and the in-gym coaching layer.',
+    description: buildSessionDescription({
+      currentExercise,
+      sessionActive: workout.sessionActive,
+      sessionComplete: workout.sessionComplete,
+      sessionSummary: workout.sessionSummary,
+    }),
     stateLabel: sessionStateLabel,
+    setProgressLabel,
+    summary: workout.sessionSummary,
   };
 
   const workoutStats = [
@@ -123,16 +162,18 @@ export function useWorkout() {
       icon: 'dumbbell',
     },
     {
-      label: 'Gym mode',
-      value: 'Focused',
-      detail: 'Large controls, glanceable set targets, and no-clutter pacing.',
-      icon: 'spark',
+      label: 'Current movement',
+      value: workout.sessionComplete ? 'Session closed' : currentExercise.name,
+      detail: workout.sessionComplete
+        ? 'The final movement is complete and the session summary is now locked in.'
+        : `${setProgressLabel} with ${currentExercise.reps}${currentExercise.unit ? ` ${currentExercise.unit}` : ' reps'} planned.`,
+      icon: 'target',
     },
     {
       label: 'AI cue density',
       value: workout.chatModeEnabled ? 'Active' : 'Light',
       detail: workout.chatModeEnabled
-        ? 'Workout Chat Mode is ready to answer form, pacing, and motivation prompts.'
+        ? 'Workout Chat Mode is open with live coach replies and pacing guidance.'
         : 'Coaching only interrupts if fatigue or form drift spikes.',
       icon: 'chat',
     },
@@ -145,7 +186,7 @@ export function useWorkout() {
       return {
         ...item,
         detail,
-        readiness: index === 0 ? 'Restart' : 'Queued',
+        readiness: index <= workout.currentExerciseIndex ? 'Done' : 'Queued',
       };
     }
 
@@ -160,7 +201,7 @@ export function useWorkout() {
     if (index === workout.currentExerciseIndex) {
       return {
         ...item,
-        detail: `${detail} | set ${workout.currentSet}`,
+        detail: `${detail} | ${setProgressLabel.toLowerCase()}`,
         readiness: workout.sessionActive ? 'Live' : 'Prime',
       };
     }
@@ -180,15 +221,21 @@ export function useWorkout() {
     };
   });
 
-  const coachCues = [
-    `Current focus: ${currentExercise.name}.`,
-    workout.restSecondsRemaining > 0
-      ? `Rest timer is active at ${formatTimer(workout.restSecondsRemaining)} before the next effort.`
-      : 'Rest timer is clear, so the next effort can start when you are ready.',
-    nextQueuedExercise
-      ? `Next exercise in queue: ${nextQueuedExercise.name}.`
-      : 'Final movement is in progress; the session wraps after this block.',
-  ];
+  const coachCues = workout.sessionComplete && workout.sessionSummary
+    ? [
+        `Session Summary: ${workout.sessionSummary.totalSetsCompleted} total sets completed.`,
+        `Mock duration closed at ${workout.sessionSummary.durationLabel}.`,
+        workout.sessionSummary.message,
+      ]
+    : [
+        `Current focus: ${currentExercise.name}.`,
+        workout.restSecondsRemaining > 0
+          ? `Rest timer is active at ${formatTimer(workout.restSecondsRemaining)} before the next effort.`
+          : 'Rest timer is clear, so the next effort can start when you are ready.',
+        nextQueuedExercise
+          ? `Next exercise in queue: ${nextQueuedExercise.name}.`
+          : 'Final movement is in progress; the session wraps after this block.',
+      ];
 
   return {
     chatMessages: workout.chatMessages,
@@ -196,15 +243,13 @@ export function useWorkout() {
     currentExercise,
     exerciseItems,
     isChatModeEnabled: workout.chatModeEnabled,
+    isChatPending: workout.chatPending,
     isSessionActive: workout.sessionActive,
     isSessionComplete: workout.sessionComplete,
     session,
     workoutStats,
     startSession() {
-      dispatch({
-        type: 'START_WORKOUT_SESSION',
-        payload: { restart: workout.sessionComplete },
-      });
+      dispatch({ type: 'START_WORKOUT_SESSION' });
     },
     completeSet() {
       dispatch({ type: 'COMPLETE_WORKOUT_SET' });
@@ -221,29 +266,47 @@ export function useWorkout() {
     sendChatMessage(text) {
       const cleanText = text.trim();
 
-      if (!cleanText) {
+      if (!cleanText || workout.chatPending) {
         return;
       }
 
       dispatch({
         type: 'APPEND_WORKOUT_CHAT_MESSAGES',
         payload: {
-          messages: [
-            createMessage('user', cleanText),
-            createMessage(
-              'assistant',
-              createCoachReply({
-                currentExercise,
-                nextQueuedExercise,
-                restSecondsRemaining: workout.restSecondsRemaining,
-                sessionComplete: workout.sessionComplete,
-                text: cleanText,
-                userProfile,
-              }),
-            ),
-          ],
+          messages: [createMessage('user', cleanText)],
         },
       });
+      dispatch({
+        type: 'SET_WORKOUT_CHAT_PENDING',
+        payload: { value: true },
+      });
+
+      const delay = 500 + Math.floor(Math.random() * 501);
+
+      window.setTimeout(() => {
+        dispatch({
+          type: 'APPEND_WORKOUT_CHAT_MESSAGES',
+          payload: {
+            messages: [
+              createMessage(
+                'assistant',
+                createCoachReply({
+                  currentExercise,
+                  nextQueuedExercise,
+                  restSecondsRemaining: workout.restSecondsRemaining,
+                  sessionComplete: workout.sessionComplete,
+                  text: cleanText,
+                  userProfile,
+                }),
+              ),
+            ],
+          },
+        });
+        dispatch({
+          type: 'SET_WORKOUT_CHAT_PENDING',
+          payload: { value: false },
+        });
+      }, delay);
     },
   };
 }
